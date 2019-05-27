@@ -5,12 +5,11 @@ import java.util.List;
 
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
-public class MethodAnalysis {
+public class ClassAnalysis {
 
 	private List<JCVariableDecl> variables = new ArrayList<JCVariableDecl>();
-	private List<ReturnBranch> rbs = new ArrayList<ReturnBranch>();
 	
-	public void addReturnBranch(ReturnBranch rb) {
-		rbs.add(rb);
+	public void addVariable(JCVariableDecl v) {
+		variables.add(v);
 	}
 }

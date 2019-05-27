@@ -1,5 +1,6 @@
 package com.paletter.stdy.tcg;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -9,8 +10,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.paletter.stdy.mockito.ParentMocker;
+import com.paletter.stdy.tcg.ast.ClassAnalysis;
 import com.paletter.stdy.tcg.ast.ConditionStore;
 import com.paletter.stdy.tcg.ast.MethodAnalysis;
+import com.paletter.stdy.tcg.ast.ReturnBranch;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
@@ -28,12 +32,17 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Name;
 
-public class AppTest2 {
+public class AppTest3 {
 
 
 	public static void main(String[] args) throws Throwable {
 
-		String file = "C:\\ProjectPath\\company\\sdk-center-login\\src\\common\\java\\com\\bilibili\\utils\\ValidUtils.java";
+//		System.out.println(ParentMocker.class.getResource(""));
+//		
+//		File f = new File("src/test/java/com/paletter/stdy/mockito/ParentMocker.java");
+//		System.out.println(f.exists());
+		
+		String file = "src/test/java/com/paletter/stdy/mockito/ParentMocker.java";
 
 		Context c = new Context();
 		JavacFileManager.preRegister(c);
@@ -54,28 +63,33 @@ public class AppTest2 {
 		@Override
 		public List<String> visitClass(ClassTree node, List<String> arg1) {
 			
-			System.out.println("1: " + node.getSimpleName());
+			ClassAnalysis ca = new ClassAnalysis();
 			
 			for (Tree tree : node.getMembers()) {
 				if (tree instanceof MethodTree) {
 
 					MethodTree methodTree = (MethodTree) tree;
 					
-					if (methodTree.getName().toString().equals("isNullOrEmpty")) {
-	
-						analyseMethod(methodTree);
+					MethodAnalysis ma = new MethodAnalysis();
+					
+					if (methodTree.getName().toString().equals("goMock")) {
+						ReturnBranch rb = analyseMethod(methodTree);
+						ma.addReturnBranch(rb);
 					}
 				}
+				
+				if (tree instanceof JCVariableDecl) {
+					JCVariableDecl jc = (JCVariableDecl) tree;
+					ca.addVariable(jc);
+				}
+				
 			}
 			
 			return super.visitClass(node, arg1);
 		}
 
-		private void analyseMethod(MethodTree methodTree) {
+		private ReturnBranch analyseMethod(MethodTree methodTree) {
 
-			System.out.println("2: " + methodTree.getName());
-			MethodAnalysis ma = new MethodAnalysis();
-			
 			// Method Parameter
 			Map<Name, Object> args = new HashMap<Name, Object>();
 			
@@ -83,45 +97,23 @@ public class AppTest2 {
 				JCVariableDecl argVd = (JCVariableDecl) arg;
 				args.put(argVd.name, argVd);
 			}
-			
-			ConditionStore goTrueCs = null;
+
+			ReturnBranch rb = new ReturnBranch();
 			
 			BlockTree body = methodTree.getBody();
 			List<? extends StatementTree> sl = body.getStatements();
 			for (StatementTree ss : sl) {
 				
-//				System.out.println(ss);
-				
 				// IF
-				if (ss instanceof JCIf) {
+				if (!(ss instanceof JCIf)) {
 				
-					JCIf ji = (JCIf) ss;
+					rb.addStatement(ss);
 					
-					// Go True
-					goTrueCs = new ConditionStore(ji);
-					
-					JCBlock thenpart = (JCBlock) ji.thenpart;
-					for (StatementTree st : thenpart.stats) {
-						if (st instanceof JCIf) {
-							JCIf ji2 = (JCIf) st;
-							analyseIf(ji2, goTrueCs);
-						}
-					}
-					
-					if (ji.elsepart != null) {
-						JCIf elseJi = (JCIf) ji.elsepart;
-						analyseIf(elseJi, null);
-					}
-					
-				}
-				
-				if (ss instanceof JCVariableDecl) {
-					JCVariableDecl vd = (JCVariableDecl) ss;
-					args.put(vd.getName(), vd);
+					System.out.println(ss);
 				}
 			}
 			
-			System.out.println(ma);
+			return rb;
 		}
 		
 		private void analyseIf(JCIf ji, ConditionStore beforeCs) {

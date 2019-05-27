@@ -26,6 +26,19 @@
             <artifactId>javapoet</artifactId>
             <version>1.11.0</version>
         </dependency>
+        
+        <!-- ## Needless -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>2.21.0</version>
+        </dependency>
+        <dependency> 
+			<groupId>org.powermock</groupId> 
+			<artifactId>powermock-api-mockito</artifactId> 
+			<version>1.6.3</version> 
+			<scope>test</scope> 
+		</dependency> 
 	</dependencies>
 	
 	<build>
