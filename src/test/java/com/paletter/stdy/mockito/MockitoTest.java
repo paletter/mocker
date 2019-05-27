@@ -1,12 +1,11 @@
 package com.paletter.stdy.mockito;
 
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
 
 public class MockitoTest {
 
 	public static void main(String[] args) {
-		
+
 //		MockitoTest mt = Mockito.mock(MockitoTest.class);
 //		Mockito.when(mt.getName()).thenReturn("1");
 //		System.out.println(mt.getName());
@@ -14,10 +13,14 @@ public class MockitoTest {
 //		Mockito.when(MockitoTest.get()).thenReturn("2");
 		
 //		System.out.println(MockitoTest.get());
+
+//		ParentMocker m = Mockito.mock(ParentMocker.class);
+//		m.goMock("", 0);
 		
-		PowerMockito.mockStatic(Mockitoer.class);
-//		PowerMockito.when(MockitoTest.get()).thenReturn("2");
-//		System.out.println(MockitoTest.get());
+//		ParentMocker m = new ParentMocker();
+//		System.out.println(m.test());
+		
+		ParentMocker2 m = Mockito.mock(ParentMocker2.class);
+		System.out.println(m.goMock());
 	}
-	
 }

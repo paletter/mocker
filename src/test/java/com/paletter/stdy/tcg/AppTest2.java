@@ -74,7 +74,7 @@ public class AppTest2 {
 		private void analyseMethod(MethodTree methodTree) {
 
 			System.out.println("2: " + methodTree.getName());
-			MethodAnalysis ma = new MethodAnalysis();
+//			MethodAnalysis ma = new MethodAnalysis();
 			
 			// Method Parameter
 			Map<Name, Object> args = new HashMap<Name, Object>();
@@ -121,7 +121,7 @@ public class AppTest2 {
 				}
 			}
 			
-			System.out.println(ma);
+//			System.out.println(ma);
 		}
 		
 		private void analyseIf(JCIf ji, ConditionStore beforeCs) {

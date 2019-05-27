@@ -70,7 +70,7 @@ public class AppTest3 {
 
 					MethodTree methodTree = (MethodTree) tree;
 					
-					MethodAnalysis ma = new MethodAnalysis();
+					MethodAnalysis ma = new MethodAnalysis(methodTree);
 					
 					if (methodTree.getName().toString().equals("goMock")) {
 						ReturnBranch rb = analyseMethod(methodTree);
