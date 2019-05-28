@@ -24,7 +24,6 @@ public class ReturnBranch {
 	private MethodAnalysis methodAnalysis;
 	private List<JCVariableDecl> variables = new ArrayList<JCVariableDecl>();
 	private List<StatementTree> statementTrees = new ArrayList<StatementTree>();
-	private JCReturn jr;
 	
 	public ReturnBranch(MethodAnalysis methodAnalysis) {
 		this.methodAnalysis = methodAnalysis;
@@ -32,16 +31,6 @@ public class ReturnBranch {
 
 	public void addStatement(StatementTree st) {
 		statementTrees.add(st);
-		
-		if (st instanceof JCVariableDecl) {
-			JCVariableDecl jc = (JCVariableDecl) st;
-			variables.add(jc);
-		}
-		
-		if (st instanceof JCReturn) {
-			JCReturn jr = (JCReturn) st;
-			this.jr = jr;
-		}
 	}
 
 	public JCVariableDecl findVariable(String name) {
@@ -58,7 +47,8 @@ public class ReturnBranch {
 		String imFieldName = methodAnalysis.getClassAnalysis().getGcImFieldName();
 		String methodName = methodAnalysis.getMethodTree().getName().toString();
 		Class<?> returnType = methodAnalysis.getMethod().getReturnType();
-		List<PreMockStatement> pmss = new ArrayList<PreMockStatement>();
+		ClassTypeMatcher returnTypeCtm = ClassTypeMatcher.get(returnType);
+		Map<String, PreMockVarStatement> branchPreMockVarStatementMap = new HashMap<String, PreMockVarStatement>();
 		
 		// Mock input arguments
 		Map<String, MockInputArg> mockInputArgs = new HashMap<String, MockInputArg>();
@@ -68,6 +58,8 @@ public class ReturnBranch {
 			String argName = jvd.name.toString();
 			if (argClass.equals(String.class)) {
 				mockInputArgs.put(argName, new MockInputArg(argClass, argName, CommonUtils.COMMON_STRING));
+			} else if (argClass.equals(Integer.class)) {
+				mockInputArgs.put(argName, new MockInputArg(argClass, argName, CommonUtils.COMMON_INTEGER));
 			}
 		}
 		
@@ -84,7 +76,7 @@ public class ReturnBranch {
 						
 						if (this.findVariable(selected.getName().toString()) == null) {
 							GCFieldStore classFs = methodAnalysis.getClassAnalysis().findGCField(selected.getName().toString());
-							pmss.add(new PreMockStatement(classFs, jv));
+							branchPreMockVarStatementMap.put(jv.name.toString(), new PreMockVarStatement(classFs, jv));
 						}
 					}
 				}
@@ -92,59 +84,28 @@ public class ReturnBranch {
 			
 			if (st instanceof JCReturn) {
 				JCReturn jr = (JCReturn) st;
-				this.jr = jr;
 				
 				if (jr.expr instanceof JCIdent) {
 					
 					JCIdent rji = (JCIdent) jr.expr;
 					
-					for (PreMockStatement pms : pmss) {
-						if (pms.getVarDecName().equals(rji.name.toString())) {
-							
-							if (returnType.isPrimitive()) {
-								
-								
-							} else {
-								
-								if (returnType.equals(String.class)) {
-									String assertVal = CommonUtils.COMMON_STRING;
-									cb.addStatement("$T.when($L.$L()).thenReturn($S)", Mockito.class, pms.getMockVariableName(), pms.getMockMethod(), assertVal);
-									cb.add(createAssertReturnStatement(assertVal, mockInputArgs.values()));
-								}
-							}
-						}
+					if (branchPreMockVarStatementMap.containsKey(rji.name.toString())) {
+						
+						PreMockVarStatement pms = branchPreMockVarStatementMap.get(rji.name.toString());
+						
+						Object assertVal = returnTypeCtm.getCommonValue();
+						
+						// Mock variable
+						cb.addStatement("$T.when($L.$L()).thenReturn($L)", Mockito.class, pms.getMockVariableName(), pms.getMockMethod(), returnTypeCtm.processAssertStatementArg(assertVal));
+						
+						// Assert return
+						cb.add(createAssertReturnStatement(assertVal, mockInputArgs.values()));
 					}
 					
 				} else if (jr.expr instanceof JCLiteral) {
 					
 					JCLiteral jl = (JCLiteral) jr.expr;
-					
-					if (returnType.isPrimitive()) {
-						
-						if (returnType.getName().equals("int")) {
-							cb.addStatement("$T.assertEquals($L.$L(), $L)", Assert.class, imFieldName, methodName, jl.getValue());
-						} else if (returnType.getName().equals("long")) {
-							cb.addStatement("$T.assertEquals($L.$L(), $LL)", Assert.class, imFieldName, methodName, jl.getValue());
-						} else if (returnType.getName().equals("float")) {
-							cb.addStatement("$T.assertEquals($L.$L(), $LF)", Assert.class, imFieldName, methodName, jl.getValue());
-						} else if (returnType.getName().equals("double")) {
-							cb.addStatement("$T.assertEquals($L.$L(), $LD)", Assert.class, imFieldName, methodName, jl.getValue());
-						}
-						
-					} else {
-						
-						if (returnType.equals(Integer.class)) {
-							cb.addStatement("$T.assertEquals($L.$L(), $L)", Assert.class, imFieldName, methodName, jl.getValue());
-						} else if (returnType.equals(Long.class)) {
-							cb.addStatement("$T.assertEquals($L.$L(), $LL)", Assert.class, imFieldName, methodName, jl.getValue());
-						} else if (returnType.equals(Float.class)) {
-							cb.addStatement("$T.assertEquals($L.$L(), $LF)", Assert.class, imFieldName, methodName, jl.getValue());
-						} else if (returnType.equals(Double.class)) {
-							cb.addStatement("$T.assertEquals($L.$L(), $LD)", Assert.class, imFieldName, methodName, jl.getValue());
-						} else if (returnType.equals(String.class)) {
-							cb.addStatement("$T.assertEquals($L.$L(), $S)", Assert.class, imFieldName, methodName, jl.getValue());
-						}
-					}
+					cb.addStatement("$T.assertEquals($L.$L(), $L)", Assert.class, imFieldName, methodName, returnTypeCtm.processAssertStatementArg(jl.getValue()));
 				}
 			}
 		}
@@ -163,23 +124,14 @@ public class ReturnBranch {
 		StringBuilder sb = new StringBuilder();
 		sb.append("$T.assertEquals($L.$L(");
 		for (MockInputArg mia : mockInputArgs) {
-			if (mia.getArgClass().equals(String.class)) {
-				sb.append("\"");
-				sb.append(mia.getMockVal().toString());
-				sb.append("\"");
-			} else {
-				sb.append(mia.getMockVal().toString());
-			}
-			
+			ClassTypeMatcher ctm = ClassTypeMatcher.get(mia.getArgClass());
+			sb.append(ctm.getCommonValueWithProcessStatementArg());
 			sb.append(",");
 		}
 		sb.deleteCharAt(sb.length() - 1);
 		sb.append("), $L)");
 		
-		if (returnType.equals(String.class)) {
-			cb.addStatement(sb.toString(), Assert.class, imFieldName, methodName, "\"" + assertVal + "\"");
-		}
-		
+		cb.addStatement(sb.toString(), Assert.class, imFieldName, methodName, ClassTypeMatcher.get(returnType).processAssertStatementArg(assertVal));
 		return cb.build();
 	}
 	
@@ -213,7 +165,7 @@ public class ReturnBranch {
 		
 	}
 
-	class PreMockStatement {
+	class PreMockVarStatement {
 		
 		private GCFieldStore fs;
 		private JCVariableDecl jv;
@@ -223,7 +175,7 @@ public class ReturnBranch {
 		
 		private String varDecName;
 
-		public PreMockStatement(GCFieldStore fs, JCVariableDecl jv) {
+		public PreMockVarStatement(GCFieldStore fs, JCVariableDecl jv) {
 			this.fs = fs;
 			this.jv = jv;
 			

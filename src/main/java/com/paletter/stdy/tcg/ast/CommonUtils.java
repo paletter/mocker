@@ -8,6 +8,7 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 public class CommonUtils {
 
 	public static String COMMON_STRING = "";
+	public static Integer COMMON_INTEGER = 0;
 	
 	public static boolean isEmpty(String str) {
         return str == null || str.length() == 0;

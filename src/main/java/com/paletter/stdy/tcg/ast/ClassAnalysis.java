@@ -11,7 +11,6 @@ import javax.lang.model.element.Modifier;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
-import com.paletter.stdy.mockito.ChildrenMocker;
 import com.paletter.stdy.tcg.ast.store.GCFieldStore;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
@@ -81,7 +80,7 @@ public class ClassAnalysis {
 			gcFieldStores.add(new GCFieldStore(field, name));
 			
 			fieldSpecs.add(
-					FieldSpec.builder(ChildrenMocker.class, name, Modifier.PRIVATE)
+					FieldSpec.builder(field.getType(), name, Modifier.PRIVATE)
 					.addAnnotation(Mock.class)
 					.build());
 		}
