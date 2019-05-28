@@ -2,23 +2,24 @@ package com.paletter.stdy.mockito;
 
 public class ParentMocker {
 
-	private String user;
 	private ChildrenMocker cm;
 	
-	public Integer goMock(String arg1, Integer arg2) {
+	public String goMock(String str1, Integer str2) {
 		
-		cm.setName(arg1);
 		String name = cm.getName();
-		user = "b";
 		
 		if (name.equals("a")) {
-			return 1;
+			return null;
 		}
 		
-		return 10;
+		return name;
 	}
 	
-	public Integer test() {
-		return 100;
+	public String test() {
+		return "1";
+	}
+	
+	public ChildrenMocker test2() {
+		return new ChildrenMocker();
 	}
 }

@@ -9,17 +9,17 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-public class JPTest {
+public class ParentMockerTest {
   @InjectMocks
-  private ParentMocker m;
+  private ParentMocker parentMocker;
 
   @Mock
-  private ChildrenMocker m2;
+  private ChildrenMocker cm;
 
   @Test
-  public void test() {
+  public void testGoMock() {
     MockitoAnnotations.initMocks(this);
-    Mockito.when(m2.getName()).thenReturn("b");
-    Assert.assertEquals(m.test(), 100L);
+    Mockito.when(cm.getName()).thenReturn("");
+    Assert.assertEquals(parentMocker.goMock(""), "");
   }
 }

@@ -83,7 +83,7 @@ public class AppTest {
 		private void analyseMethod(MethodTree methodTree) {
 
 			System.out.println("2: " + methodTree.getName());
-			ReturnBranch rb = new ReturnBranch();
+			ReturnBranch rb = new ReturnBranch(null);
 			
 			// Method Parameter
 			Map<Name, Object> args = new HashMap<Name, Object>();

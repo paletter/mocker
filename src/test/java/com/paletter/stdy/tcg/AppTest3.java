@@ -1,6 +1,5 @@
 package com.paletter.stdy.tcg;
 
-import java.io.File;
 import java.io.FileInputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -10,7 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.paletter.stdy.mockito.ParentMocker;
 import com.paletter.stdy.tcg.ast.ClassAnalysis;
 import com.paletter.stdy.tcg.ast.ConditionStore;
 import com.paletter.stdy.tcg.ast.MethodAnalysis;
@@ -42,40 +40,55 @@ public class AppTest3 {
 //		File f = new File("src/test/java/com/paletter/stdy/mockito/ParentMocker.java");
 //		System.out.println(f.exists());
 		
-		String file = "src/test/java/com/paletter/stdy/mockito/ParentMocker.java";
+//		String filePath = "src/test/java/com/paletter/stdy/mockito/ParentMocker.java";
+		String fileBasicUrl = "src/test/java/";
+		String filePath = "com/paletter/stdy/mockito/ParentMocker.java";
 
+		String classPath = filePath.replaceAll("/", ".");
+		classPath = classPath.replaceAll(".java", "");
+		Class<?> c2 = Class.forName(classPath);
+		
 		Context c = new Context();
 		JavacFileManager.preRegister(c);
 		ParserFactory factory = ParserFactory.instance(c);
 
-		FileInputStream f = new FileInputStream(file);
+		FileInputStream f = new FileInputStream(fileBasicUrl + filePath);
 		FileChannel ch = f.getChannel();
 		ByteBuffer buffer = ch.map(MapMode.READ_ONLY, 0, ch.size());
 
 		Parser parser = factory.newParser(Charset.defaultCharset().decode(buffer), true, false, true);
 		JCCompilationUnit unit = parser.parseCompilationUnit();
 		
-		unit.accept(new MethodScanner(), null);
+		ClassAnalysis ca = new ClassAnalysis(c2);
+		unit.accept(new MethodScanner(ca), null);
+		
+		ca.generateCode();
 	}
 
 	static class MethodScanner extends TreeScanner<List<String>, List<String>> {
 
+		private ClassAnalysis ca;
+		
+		public MethodScanner(ClassAnalysis ca) {
+			this.ca = ca;
+		}
+
 		@Override
 		public List<String> visitClass(ClassTree node, List<String> arg1) {
-			
-			ClassAnalysis ca = new ClassAnalysis();
 			
 			for (Tree tree : node.getMembers()) {
 				if (tree instanceof MethodTree) {
 
 					MethodTree methodTree = (MethodTree) tree;
 					
-					MethodAnalysis ma = new MethodAnalysis(methodTree);
+					MethodAnalysis ma = new MethodAnalysis(ca, methodTree);
 					
 					if (methodTree.getName().toString().equals("goMock")) {
-						ReturnBranch rb = analyseMethod(methodTree);
+						ReturnBranch rb = analyseMethod(ma);
 						ma.addReturnBranch(rb);
 					}
+					
+					ca.addMethod(ma);
 				}
 				
 				if (tree instanceof JCVariableDecl) {
@@ -88,8 +101,10 @@ public class AppTest3 {
 			return super.visitClass(node, arg1);
 		}
 
-		private ReturnBranch analyseMethod(MethodTree methodTree) {
+		private ReturnBranch analyseMethod(MethodAnalysis ma) {
 
+			MethodTree methodTree = ma.getMethodTree();
+			
 			// Method Parameter
 			Map<Name, Object> args = new HashMap<Name, Object>();
 			
@@ -98,7 +113,7 @@ public class AppTest3 {
 				args.put(argVd.name, argVd);
 			}
 
-			ReturnBranch rb = new ReturnBranch();
+			ReturnBranch rb = new ReturnBranch(ma);
 			
 			BlockTree body = methodTree.getBody();
 			List<? extends StatementTree> sl = body.getStatements();
