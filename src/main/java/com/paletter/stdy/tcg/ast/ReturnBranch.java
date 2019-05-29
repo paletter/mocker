@@ -50,8 +50,6 @@ public class ReturnBranch {
 		
 		CodeBlock.Builder cb = CodeBlock.builder();
 		
-		String imFieldName = methodAnalysis.getClassAnalysis().getGcImFieldName();
-		String methodName = methodAnalysis.getMethodTree().getName().toString();
 		Class<?> returnType = methodAnalysis.getMethod().getReturnType();
 		ClassTypeMatcher returnTypeCtm = ClassTypeMatcher.get(returnType);
 		
@@ -163,8 +161,24 @@ public class ReturnBranch {
 					
 					JCIdent argJi = (JCIdent) arg;
 					FindVar findVar = findVar(argJi.getName().toString());
-					ClassTypeMatcher ctm = ClassTypeMatcher.get(findVar.getVal().getClass());
-					sb.append(ctm.processStatementArg(findVar.getVal()));
+					
+					if (findVar.getVal() == null)  {
+						
+						sb.append("Mockito.any()");	
+					} else {
+						
+						ClassTypeMatcher ctm = ClassTypeMatcher.get(findVar.getVal().getClass());
+						if (ctm.equals(ClassTypeMatcher.OBJECT)) {
+							sb.append("Mockito.any()");
+						} else {
+							sb.append(ctm.processStatementArg(findVar.getVal()));
+						}
+					}
+				
+				} else if (arg instanceof JCFieldAccess) {
+					
+					JCFieldAccess argJfa = (JCFieldAccess) arg;
+					sb.append(argJfa.toString());
 					
 				} else {
 					
@@ -189,6 +203,7 @@ public class ReturnBranch {
 		if (methodInsideArgs.containsKey(name)) {
 			GCMethodArgStore mas = methodInsideArgs.get(name);
 			FindVar rlt = new FindVar();
+			rlt.setName(mas.getArgName());
 			rlt.setVal(mas.getValue());
 			return rlt;
 		}

@@ -19,7 +19,7 @@ public class ParentMockerTest {
   @Test
   public void testGetMockVal8() {
     MockitoAnnotations.initMocks(this);
-    Mockito.when(cm.getName(null)).thenReturn("testString");
+    Mockito.when(cm.getName3(Mockito.any())).thenReturn("testString");
     Assert.assertEquals(parentMocker.getMockVal8(), "testString");
   }
 }

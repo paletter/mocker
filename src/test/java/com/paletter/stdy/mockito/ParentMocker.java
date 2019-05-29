@@ -1,6 +1,7 @@
 package com.paletter.stdy.mockito;
 
 import java.math.BigDecimal;
+import java.util.Date;
 
 public class ParentMocker {
 
@@ -8,7 +9,9 @@ public class ParentMocker {
 	private ChildrenMocker cm;
 
 	public String getMockVal8() {
-		return cm.getName(Config.TEST_ID);
+		Date d = new Date();
+		TestDTO dto = new TestDTO();
+		return cm.getName3(dto);
 	}
 	
 	public String getMockVal7(Integer i) {

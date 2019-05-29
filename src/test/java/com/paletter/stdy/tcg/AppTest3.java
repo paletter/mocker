@@ -15,6 +15,7 @@ import com.paletter.stdy.tcg.ast.MethodAnalysis;
 import com.paletter.stdy.tcg.ast.ReturnBranch;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.Tree;
@@ -71,6 +72,11 @@ public class AppTest3 {
 		
 		public MethodScanner(ClassAnalysis ca) {
 			this.ca = ca;
+		}
+		
+		@Override
+		public List<String> visitImport(ImportTree arg0, List<String> arg1) {
+			return super.visitImport(arg0, arg1);
 		}
 
 		@Override

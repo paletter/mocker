@@ -24,7 +24,11 @@ public class ChildrenMocker {
 		return name;
 	}
 	
-	public String getName(ChildrenMocker cm) {
+	public String getName2(ChildrenMocker cm) {
+		return name;
+	}
+	
+	public String getName3(TestDTO dto) {
 		return name;
 	}
 	
