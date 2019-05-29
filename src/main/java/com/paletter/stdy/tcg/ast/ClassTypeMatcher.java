@@ -11,12 +11,12 @@ public enum ClassTypeMatcher {
 	PFLOAT(true, "float", Float.class),
 	PDOUBLE(true, "double", Double.class),
 	
-	INTEGER(false, null, Integer.class),
-	LONG(false, null, Long.class),
-	FLOAT(false, null, Float.class),
-	DOUBLE(false, null, Double.class),
-	BIGDECIMAL(false, null, BigDecimal.class),
-	STRING(false, null, String.class),
+	INTEGER(false, "Integer", Integer.class),
+	LONG(false, "Long", Long.class),
+	FLOAT(false, "Float", Float.class),
+	DOUBLE(false, "Double", Double.class),
+	BIGDECIMAL(false, "BigDecimal", BigDecimal.class),
+	STRING(false, "String", String.class),
 	
 	OBJECT(false, null, Object.class),
 	;
@@ -24,6 +24,9 @@ public enum ClassTypeMatcher {
 	private boolean isPrimitive;
 	private String name;
 	private Class<?> cla;
+	
+	private String processStatementSuffix = "";
+	private String processStatementPrefix = "";
 	
 	private String processAssertSuffix = "";
 	private String processAssertPrefix = "";
@@ -36,7 +39,7 @@ public enum ClassTypeMatcher {
 		
 		if (cla.equals(Integer.class)) {
 			
-			commonValue = 0;
+			commonValue = 1;
 			
 			if (!isPrimitive) {
 				processAssertPrefix = "Integer.valueOf(";
@@ -45,7 +48,7 @@ public enum ClassTypeMatcher {
 			
 		} else if (cla.equals(Long.class)) {
 			
-			commonValue = 0L;
+			commonValue = 1L;
 			
 			if (!isPrimitive) {
 				processAssertPrefix = "Long.valueOf(";
@@ -54,9 +57,11 @@ public enum ClassTypeMatcher {
 				processAssertSuffix = "l";				
 			}
 			
+			processStatementSuffix = "l";
+			
 		} else if (cla.equals(Float.class)) {
 			
-			commonValue = 0F;
+			commonValue = 1F;
 
 			if (!isPrimitive) {
 				processAssertPrefix = "Float.valueOf(";
@@ -65,9 +70,11 @@ public enum ClassTypeMatcher {
 				processAssertSuffix = "f";				
 			}
 			
+			processStatementSuffix = "f";
+			
 		} else if (cla.equals(Double.class)) {
 			
-			commonValue = 0D;
+			commonValue = 1D;
 			
 			if (!isPrimitive) {
 				processAssertPrefix = "Double.valueOf(";
@@ -76,6 +83,8 @@ public enum ClassTypeMatcher {
 				processAssertSuffix = "d";				
 			}
 			
+			processStatementSuffix = "d";
+			
 		} else if (cla.equals(String.class)) {
 			
 			commonValue = "testString";
@@ -83,15 +92,26 @@ public enum ClassTypeMatcher {
 			processAssertPrefix = "\"";
 			processAssertSuffix = "\"";
 			
+			processStatementPrefix = "\"";
+			processStatementSuffix = "\"";
+			
 		} else if (cla.equals(BigDecimal.class)) {
 			
-			commonValue = BigDecimal.ZERO;
+			commonValue = new BigDecimal(1);
 
 			processAssertPrefix = "BigDecimal.valueOf(";
 			processAssertSuffix = ")";
+			
+			processStatementPrefix = "BigDecimal.valueOf(";
+			processStatementSuffix = ")";
 		}
 	}
 
+	public String processStatementArg(Object arg) {
+		if (arg == null) return null;
+		return processStatementPrefix + arg + processStatementSuffix;
+	}
+	
 	public String processAssertStatementArg(Object arg) {
 		if (arg == null) return null;
 		return processAssertPrefix + arg + processAssertSuffix;
@@ -120,6 +140,22 @@ public enum ClassTypeMatcher {
 			}
 			
 			if (cache.containsKey(cla)) return cache.get(cla); 
+		}
+		
+		return ClassTypeMatcher.OBJECT;
+	}
+	
+	private static Map<String, ClassTypeMatcher> cacheName = new HashMap<String, ClassTypeMatcher>();
+	
+	public static ClassTypeMatcher get(String name) {
+		
+		if (cacheName.containsKey(name)) return cacheName.get(name);
+		
+		for (ClassTypeMatcher ctm : ClassTypeMatcher.values()) {
+			if (ctm.name.equals(name)) {
+				cacheName.put(name, ctm);
+				return ctm;
+			}
 		}
 		
 		return ClassTypeMatcher.OBJECT;

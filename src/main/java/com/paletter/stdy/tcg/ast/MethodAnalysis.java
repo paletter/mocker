@@ -2,21 +2,26 @@ package com.paletter.stdy.tcg.ast;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.lang.model.element.Modifier;
 
 import org.junit.Test;
 import org.mockito.MockitoAnnotations;
 
+import com.paletter.stdy.tcg.ast.store.GCMethodInputArgStore;
 import com.squareup.javapoet.MethodSpec;
 import com.sun.source.tree.MethodTree;
+import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class MethodAnalysis {
 
 	private ClassAnalysis classAnalysis;
 	private MethodTree methodTree;
 	private Method method;
+	private Map<String, GCMethodInputArgStore> inputArgs;
 	
 	private List<ReturnBranch> rbs = new ArrayList<ReturnBranch>();
 
@@ -32,6 +37,15 @@ public class MethodAnalysis {
 				break;
 			}
 		}
+		
+		// Input arguments
+		inputArgs = new HashMap<String, GCMethodInputArgStore>();
+		for (int i = 0; i < method.getParameterTypes().length; i ++) {
+			Class<?> argClass = method.getParameterTypes()[i];
+			JCVariableDecl jvd = (JCVariableDecl) this.methodTree.getParameters().get(i);
+			String argName = jvd.name.toString();
+			inputArgs.put(argName, new GCMethodInputArgStore(argClass, argName));
+		}
 	}
 
 	public void addReturnBranch(ReturnBranch rb) {
@@ -44,6 +58,15 @@ public class MethodAnalysis {
 
 	public Method getMethod() {
 		return method;
+	}
+	
+	// InputArgs
+	public GCMethodInputArgStore getInputArg(String name) {
+		return inputArgs.get(name);
+	}
+
+	public Map<String, GCMethodInputArgStore> getInputArgs() {
+		return inputArgs;
 	}
 
 	public List<MethodSpec> generateCode() {

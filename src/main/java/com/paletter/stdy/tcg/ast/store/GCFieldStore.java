@@ -6,6 +6,7 @@ public class GCFieldStore {
 
 	private Field field;
 	private String name;
+	private Object val;
 	
 	public GCFieldStore(Field field, String name) {
 		this.field = field;
@@ -26,6 +27,14 @@ public class GCFieldStore {
 
 	public void setName(String name) {
 		this.name = name;
+	}
+
+	public Object getVal() {
+		return val;
+	}
+
+	public void setVal(Object val) {
+		this.val = val;
 	}
 	
 }

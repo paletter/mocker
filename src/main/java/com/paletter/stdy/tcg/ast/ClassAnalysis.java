@@ -4,7 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.lang.model.element.Modifier;
 
@@ -16,12 +18,13 @@ import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeSpec;
+import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class ClassAnalysis {
 
 	private Class<?> clazz;
-	private List<JCVariableDecl> variables = new ArrayList<JCVariableDecl>();
+	private Map<String, Object> variables = new HashMap<String, Object>();
 	private List<MethodAnalysis> methods = new ArrayList<MethodAnalysis>();
 	
 	private List<GCFieldStore> gcFieldStores = new ArrayList<GCFieldStore>();
@@ -32,8 +35,16 @@ public class ClassAnalysis {
 		this.clazz = clazz;
 	}
 
-	public void addVariable(JCVariableDecl v) {
-		variables.add(v);
+	public void addVariable(JCVariableDecl jv) {
+		String argName = jv.name.toString();
+		
+		variables.put(argName, null);
+		
+		if (jv.init instanceof JCLiteral) {
+			JCLiteral jvInit = (JCLiteral) jv.init;
+			Object initVal = jvInit.value;
+			variables.put(argName, initVal);
+		}
 	}
 	
 	public void addMethod(MethodAnalysis m) {
@@ -46,13 +57,6 @@ public class ClassAnalysis {
 	
 	public Class<?> getClazz() {
 		return clazz;
-	}
-	
-	public JCVariableDecl findVariable(String name) {
-		for (JCVariableDecl jv : variables) {
-			if (jv.name.toString().equals(name)) return jv;
-		}
-		return null;
 	}
 	
 	public GCFieldStore findGCField(String name) {
@@ -76,8 +80,13 @@ public class ClassAnalysis {
 		// 1.2 Mock field
 		for (Field field : clazz.getDeclaredFields()) {
 			
-			String name = CommonUtils.toLowerCaseFirstChar(field.getName());
-			gcFieldStores.add(new GCFieldStore(field, name));
+			String name = field.getName();
+			GCFieldStore fs = new GCFieldStore(field, name);
+			if (variables.containsKey(field.getName())) 
+				fs.setVal(variables.get(name));
+			gcFieldStores.add(fs);
+			
+			if (!ClassTypeMatcher.get(field.getType()).equals(ClassTypeMatcher.OBJECT)) continue;
 			
 			fieldSpecs.add(
 					FieldSpec.builder(field.getType(), name, Modifier.PRIVATE)

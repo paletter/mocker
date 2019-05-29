@@ -10,6 +10,8 @@ import org.junit.Assert;
 import org.mockito.Mockito;
 
 import com.paletter.stdy.tcg.ast.store.GCFieldStore;
+import com.paletter.stdy.tcg.ast.store.GCMethodArgStore;
+import com.paletter.stdy.tcg.ast.store.GCMethodInputArgStore;
 import com.squareup.javapoet.CodeBlock;
 import com.sun.source.tree.StatementTree;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
@@ -22,24 +24,28 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 public class ReturnBranch {
 	
 	private MethodAnalysis methodAnalysis;
-	private List<JCVariableDecl> variables = new ArrayList<JCVariableDecl>();
 	private List<StatementTree> statementTrees = new ArrayList<StatementTree>();
+	private Map<String, GCMethodArgStore> methodInputArgs = new HashMap<String, GCMethodArgStore>();
+	private Map<String, GCMethodArgStore> methodInsideArgs = new HashMap<String, GCMethodArgStore>();
 	
 	public ReturnBranch(MethodAnalysis methodAnalysis) {
 		this.methodAnalysis = methodAnalysis;
+		
+		// Mock input arguments
+		for (GCMethodInputArgStore mias : methodAnalysis.getInputArgs().values()) {
+			ClassTypeMatcher ctm = ClassTypeMatcher.get(mias.getArgCla());
+			if (ctm != null) {
+				methodInputArgs.put(mias.getArgName(), new GCMethodArgStore(mias.getArgName(), mias.getArgCla(), ctm.getCommonValue()));
+			} else {
+				methodInputArgs.put(mias.getArgName(), new GCMethodArgStore(mias.getArgName(), mias.getArgCla(), null));
+			}
+		}
 	}
 
 	public void addStatement(StatementTree st) {
 		statementTrees.add(st);
 	}
 
-	public JCVariableDecl findVariable(String name) {
-		for (JCVariableDecl jv : variables) {
-			if (jv.name.toString().equals(name)) return jv;
-		}
-		return null;
-	}
-	
 	public CodeBlock generateCode() {
 		
 		CodeBlock.Builder cb = CodeBlock.builder();
@@ -48,72 +54,197 @@ public class ReturnBranch {
 		String methodName = methodAnalysis.getMethodTree().getName().toString();
 		Class<?> returnType = methodAnalysis.getMethod().getReturnType();
 		ClassTypeMatcher returnTypeCtm = ClassTypeMatcher.get(returnType);
-		Map<String, PreMockVarStatement> branchPreMockVarStatementMap = new HashMap<String, PreMockVarStatement>();
 		
-		// Mock input arguments
-		Map<String, MockInputArg> mockInputArgs = new HashMap<String, MockInputArg>();
-		for (int i = 0; i < methodAnalysis.getMethod().getParameterTypes().length; i ++) {
-			Class<?> argClass = methodAnalysis.getMethod().getParameterTypes()[i];
-			JCVariableDecl jvd = (JCVariableDecl) methodAnalysis.getMethodTree().getParameters().get(i);
-			String argName = jvd.name.toString();
-			if (argClass.equals(String.class)) {
-				mockInputArgs.put(argName, new MockInputArg(argClass, argName, CommonUtils.COMMON_STRING));
-			} else if (argClass.equals(Integer.class)) {
-				mockInputArgs.put(argName, new MockInputArg(argClass, argName, CommonUtils.COMMON_INTEGER));
-			}
-		}
-		
+		boolean isReturn = false;
 		for (StatementTree st : statementTrees) {
 			
 			if (st instanceof JCVariableDecl) {
 				JCVariableDecl jv = (JCVariableDecl) st;
 				
+				String argName = jv.name.toString();
+				String argType = jv.vartype.toString();
+				
+				GCMethodArgStore mas = new GCMethodArgStore(argName, argType);
+				
+				if (jv.init instanceof JCLiteral) {
+					JCLiteral jvInit = (JCLiteral) jv.init;
+					Object initVal = jvInit.value;
+					mas.setValue(initVal);
+				}
+				
 				if (jv.init instanceof JCMethodInvocation) {
 					JCMethodInvocation jmi = (JCMethodInvocation) jv.init;
 					if (jmi.meth instanceof JCFieldAccess) {
-						JCFieldAccess jfa = (JCFieldAccess) jmi.meth;
-						JCIdent selected = (JCIdent) jfa.selected;
 						
-						if (this.findVariable(selected.getName().toString()) == null) {
-							GCFieldStore classFs = methodAnalysis.getClassAnalysis().findGCField(selected.getName().toString());
-							branchPreMockVarStatementMap.put(jv.name.toString(), new PreMockVarStatement(classFs, jv));
+						// Mock variable
+						ClassTypeMatcher ctm = ClassTypeMatcher.get(argType);
+						if (!ctm.equals(ClassTypeMatcher.OBJECT)) {
+							Object expectVal = ctm.getCommonValue();
+							cb.add(createMockStatement(jmi, ctm.processStatementArg(expectVal)));
+							
+							mas.setValue(expectVal);
+						} else {
+							cb.add(createMockStatement(jmi, "null"));
+							
+							mas.setValue(null);
 						}
 					}
 				}
+				
+				methodInsideArgs.put(argName, mas);
 			}
 			
 			if (st instanceof JCReturn) {
+				
+				isReturn = true;
 				JCReturn jr = (JCReturn) st;
 				
-				if (jr.expr instanceof JCIdent) {
+				if (jr.expr == null) {
+					
+					cb.add(createNotReturnStatement(methodInputArgs.values()));
+					
+				} else if (jr.expr instanceof JCIdent) {
 					
 					JCIdent rji = (JCIdent) jr.expr;
 					
-					if (branchPreMockVarStatementMap.containsKey(rji.name.toString())) {
-						
-						PreMockVarStatement pms = branchPreMockVarStatementMap.get(rji.name.toString());
-						
-						Object assertVal = returnTypeCtm.getCommonValue();
+					FindVar findVar = findVar(rji.name.toString());
+					// Assert return
+					cb.add(createAssertReturnStatement(findVar.getVal(), methodInputArgs.values()));
+				
+				} else if (jr.expr instanceof JCMethodInvocation) {
+					
+					JCMethodInvocation jmi = (JCMethodInvocation) jr.expr;
+					if (jmi.meth instanceof JCFieldAccess) {
 						
 						// Mock variable
-						cb.addStatement("$T.when($L.$L()).thenReturn($L)", Mockito.class, pms.getMockVariableName(), pms.getMockMethod(), returnTypeCtm.processAssertStatementArg(assertVal));
+						Object expectVal = returnTypeCtm.getCommonValue();
+						cb.add(createMockStatement(jmi, returnTypeCtm.processStatementArg(expectVal)));
 						
 						// Assert return
-						cb.add(createAssertReturnStatement(assertVal, mockInputArgs.values()));
+						cb.add(createAssertReturnStatement(expectVal, methodInputArgs.values()));
 					}
 					
 				} else if (jr.expr instanceof JCLiteral) {
 					
 					JCLiteral jl = (JCLiteral) jr.expr;
-					cb.addStatement("$T.assertEquals($L.$L(), $L)", Assert.class, imFieldName, methodName, returnTypeCtm.processAssertStatementArg(jl.getValue()));
+					// Assert return
+					cb.add(createAssertReturnStatement(jl.getValue(), methodInputArgs.values()));
 				}
 			}
 		}
 		
+		if (!isReturn) cb.add(createNotReturnStatement(methodInputArgs.values()));
+		
 		return cb.build();
 	}
 	
-	private CodeBlock createAssertReturnStatement(Object assertVal, Collection<MockInputArg> mockInputArgs) {
+	private CodeBlock createMockStatement(JCMethodInvocation jmi, Object expectVal) {
+		JCFieldAccess jfa = (JCFieldAccess) jmi.meth;
+		JCIdent selected = (JCIdent) jfa.selected;
+		
+		String mockVariableName = selected.getName().toString();
+		String mockMethod = jfa.name.toString();
+		StringBuilder sb = new StringBuilder();
+		if (jmi.args == null || jmi.args.isEmpty()) {
+			
+			sb.append("$T.when($L.$L())");
+		} else {
+			
+			sb.append("$T.when($L.$L(");
+			for (Object arg : jmi.args) {
+				
+				if (arg instanceof JCLiteral) {
+					
+					JCLiteral argJl = (JCLiteral) arg;
+					ClassTypeMatcher ctm = ClassTypeMatcher.get(argJl.value.getClass());
+					sb.append(ctm.processStatementArg(argJl.value));
+					
+				} else if (arg instanceof JCIdent) {
+					
+					JCIdent argJi = (JCIdent) arg;
+					FindVar findVar = findVar(argJi.getName().toString());
+					ClassTypeMatcher ctm = ClassTypeMatcher.get(findVar.getVal().getClass());
+					sb.append(ctm.processStatementArg(findVar.getVal()));
+					
+				} else {
+					
+					sb.append("null");
+				}
+				
+				sb.append(",");
+			}
+			sb.deleteCharAt(sb.length() - 1);
+			sb.append("))");
+		}
+		
+		sb.append(".thenReturn($L)");
+		CodeBlock cb = CodeBlock.builder()
+				.addStatement(sb.toString(), Mockito.class, mockVariableName, mockMethod, expectVal)
+				.build();
+		return cb;
+	}
+	
+	private FindVar findVar(String name) {
+		
+		if (methodInsideArgs.containsKey(name)) {
+			GCMethodArgStore mas = methodInsideArgs.get(name);
+			FindVar rlt = new FindVar();
+			rlt.setVal(mas.getValue());
+			return rlt;
+		}
+		
+		if (methodInputArgs.containsKey(name)) {
+			GCMethodArgStore mas = methodInputArgs.get(name);
+			FindVar rlt = new FindVar();
+			rlt.setCla(mas.getArgClass());
+			rlt.setVal(mas.getValue());
+			return rlt;
+		}
+		
+		GCFieldStore classFs = methodAnalysis.getClassAnalysis().findGCField(name);
+		if (classFs != null) {
+			FindVar rlt = new FindVar();
+			rlt.setCla(classFs.getField().getType());
+			rlt.setVal(classFs.getVal());
+			return rlt;
+		}
+		
+		return null;
+	}
+
+	class FindVar {
+		
+		private String name;
+		private Class<?> cla;
+		private Object val;
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public Object getVal() {
+			return val;
+		}
+
+		public void setVal(Object val) {
+			this.val = val;
+		}
+
+		public Class<?> getCla() {
+			return cla;
+		}
+
+		public void setCla(Class<?> cla) {
+			this.cla = cla;
+		}
+		
+	}
+	
+	private CodeBlock createAssertReturnStatement(Object assertVal, Collection<GCMethodArgStore> mockInputArgs) {
 		CodeBlock.Builder cb = CodeBlock.builder();
 		
 		String imFieldName = methodAnalysis.getClassAnalysis().getGcImFieldName();
@@ -122,16 +253,50 @@ public class ReturnBranch {
 		Class<?> returnType = methodAnalysis.getMethod().getReturnType();
 		
 		StringBuilder sb = new StringBuilder();
-		sb.append("$T.assertEquals($L.$L(");
-		for (MockInputArg mia : mockInputArgs) {
-			ClassTypeMatcher ctm = ClassTypeMatcher.get(mia.getArgClass());
-			sb.append(ctm.getCommonValueWithProcessStatementArg());
-			sb.append(",");
+		if (mockInputArgs == null || mockInputArgs.isEmpty()) {
+			
+			sb.append("$T.assertEquals($L.$L(), $L)");
+			
+		} else {
+			
+			sb.append("$T.assertEquals($L.$L(");
+			for (GCMethodArgStore mas : mockInputArgs) {
+				ClassTypeMatcher ctm = ClassTypeMatcher.get(mas.getArgClass());
+				sb.append(ctm.getCommonValueWithProcessStatementArg());
+				sb.append(",");
+			}
+			sb.deleteCharAt(sb.length() - 1);
+			sb.append("), $L)");
 		}
-		sb.deleteCharAt(sb.length() - 1);
-		sb.append("), $L)");
 		
 		cb.addStatement(sb.toString(), Assert.class, imFieldName, methodName, ClassTypeMatcher.get(returnType).processAssertStatementArg(assertVal));
+		return cb.build();
+	}
+	
+	private CodeBlock createNotReturnStatement(Collection<GCMethodArgStore> mockInputArgs) {
+		CodeBlock.Builder cb = CodeBlock.builder();
+		
+		String imFieldName = methodAnalysis.getClassAnalysis().getGcImFieldName();
+		String methodName = methodAnalysis.getMethodTree().getName().toString();
+		
+		StringBuilder sb = new StringBuilder();
+		if (mockInputArgs == null || mockInputArgs.isEmpty()) {
+			
+			sb.append("$L.$L()");
+			
+		} else {
+			
+			sb.append("$L.$L()");
+			for (GCMethodArgStore mas : mockInputArgs) {
+				ClassTypeMatcher ctm = ClassTypeMatcher.get(mas.getArgClass());
+				sb.append(ctm.getCommonValueWithProcessStatementArg());
+				sb.append(",");
+			}
+			sb.deleteCharAt(sb.length() - 1);
+			sb.append(")");
+		}
+		
+		cb.addStatement(sb.toString(), imFieldName, methodName);
 		return cb.build();
 	}
 	
@@ -165,55 +330,6 @@ public class ReturnBranch {
 		
 	}
 
-	class PreMockVarStatement {
-		
-		private GCFieldStore fs;
-		private JCVariableDecl jv;
-		
-		private String mockVariableName;
-		private String mockMethod;
-		
-		private String varDecName;
-
-		public PreMockVarStatement(GCFieldStore fs, JCVariableDecl jv) {
-			this.fs = fs;
-			this.jv = jv;
-			
-			mockVariableName = fs.getName();
-			
-			if (jv.init instanceof JCMethodInvocation) {
-				JCMethodInvocation jmi = (JCMethodInvocation) jv.init;
-				if (jmi.meth instanceof JCFieldAccess) {
-					JCFieldAccess jfa = (JCFieldAccess) jmi.meth;
-					mockMethod = jfa.name.toString();
-				}
-			}
-			
-			varDecName = jv.name.toString();
-		}
-
-		public GCFieldStore getFs() {
-			return fs;
-		}
-
-		public String getMockVariableName() {
-			return mockVariableName;
-		}
-
-		public String getMockMethod() {
-			return mockMethod;
-		}
-
-		public JCVariableDecl getJv() {
-			return jv;
-		}
-
-		public String getVarDecName() {
-			return varDecName;
-		}
-		
-	}
-	
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();

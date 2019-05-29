@@ -10,9 +10,16 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 public class ParentMockerTest {
-  
+  @InjectMocks
+  private ParentMocker parentMocker;
+
+  @Mock
+  private ChildrenMocker cm;
+
   @Test
-  public void test() {
-	  Assert.assertEquals(1f, 1f);
+  public void testGetMockVal8() {
+    MockitoAnnotations.initMocks(this);
+    Mockito.when(cm.getName(null)).thenReturn("testString");
+    Assert.assertEquals(parentMocker.getMockVal8(), "testString");
   }
 }

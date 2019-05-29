@@ -1,14 +1,16 @@
 package com.paletter.stdy.tcg.ast;
 
 import java.lang.reflect.Method;
+import java.util.List;
 
 import com.sun.source.tree.MethodTree;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class CommonUtils {
 
 	public static String COMMON_STRING = "";
-	public static Integer COMMON_INTEGER = 0;
+	public static Integer COMMON_INTEGER = 1;
 	
 	public static boolean isEmpty(String str) {
         return str == null || str.length() == 0;
@@ -41,6 +43,12 @@ public class CommonUtils {
 				return false;
 		}
 		
+		return true;
+	}
+	
+	public static boolean matchMethodParams(Method m1, List<JCTree.JCExpression> params) {
+		if (m1 == null || params == null) return false;
+		if (m1.getParameterTypes().length != params.size()) return false;
 		return true;
 	}
 }

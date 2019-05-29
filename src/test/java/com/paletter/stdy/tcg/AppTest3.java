@@ -83,10 +83,10 @@ public class AppTest3 {
 					
 					MethodAnalysis ma = new MethodAnalysis(ca, methodTree);
 					
-//					if (methodTree.getName().toString().equals("goMock")) {
+					if (methodTree.getName().toString().equals("getMockVal8")) {
 						ReturnBranch rb = analyseMethod(ma);
 						ma.addReturnBranch(rb);
-//					}
+					}
 					
 					ca.addMethod(ma);
 				}
