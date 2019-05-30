@@ -3,8 +3,10 @@ package com.paletter.stdy.tcg.ast;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.Assert;
 import org.mockito.Mockito;
@@ -15,6 +17,7 @@ import com.paletter.stdy.tcg.ast.store.GCMethodInputArgStore;
 import com.squareup.javapoet.CodeBlock;
 import com.sun.source.tree.StatementTree;
 import com.sun.tools.javac.tree.JCTree.JCBinary;
+import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
@@ -36,6 +39,8 @@ public class ReturnBranch {
 	private Map<String, GCMethodArgStore> methodInputArgs = new HashMap<String, GCMethodArgStore>();
 	private Map<String, GCMethodArgStore> methodInsideArgs = new HashMap<String, GCMethodArgStore>();
 	
+	private Map<FindVar, Object> preVars = new HashMap<FindVar, Object>();
+	
 	public ReturnBranch(MethodAnalysis methodAnalysis, ReturnBranch rb) {
 		this(methodAnalysis);
 		
@@ -45,15 +50,7 @@ public class ReturnBranch {
 	public ReturnBranch(MethodAnalysis methodAnalysis) {
 		this.methodAnalysis = methodAnalysis;
 		
-		// Mock input arguments
-		for (GCMethodInputArgStore mias : methodAnalysis.getInputArgs().values()) {
-			ClassTypeMatcher ctm = ClassTypeMatcher.get(mias.getArgCla());
-			if (ctm != null) {
-				methodInputArgs.put(mias.getArgName(), new GCMethodArgStore(mias.getArgName(), mias.getArgCla(), ctm.getCommonValue()));
-			} else {
-				methodInputArgs.put(mias.getArgName(), new GCMethodArgStore(mias.getArgName(), mias.getArgCla(), null));
-			}
-		}
+		initMethodInputArg();
 	}
 
 	public void addStatement(StatementTree st) {
@@ -81,6 +78,9 @@ public class ReturnBranch {
 					}
 				}
 			}
+			
+			// PreAnalyse if
+			analyseIf();
 			
 			CodeBlock.Builder cb = CodeBlock.builder();
 			
@@ -111,10 +111,17 @@ public class ReturnBranch {
 							// Mock variable
 							ClassTypeMatcher ctm = ClassTypeMatcher.get(argType);
 							if (!ctm.equals(ClassTypeMatcher.OBJECT)) {
-								Object expectVal = ctm.getCommonValue();
-								cb.add(createMockStatement(jmi, ctm.processStatementArg(expectVal)));
 								
-								mas.setValue(expectVal);
+								if (preVars.containsKey(new FindVar(argName, METHOD_INSIDE_ARG))) {
+									Object expectVal = preVars.get(new FindVar(argName, METHOD_INSIDE_ARG));
+									cb.add(createMockStatement(jmi, ctm.processStatementArg(expectVal)));
+									mas.setValue(expectVal);
+								} else {
+									Object expectVal = ctm.getCommonValue();
+									cb.add(createMockStatement(jmi, ctm.processStatementArg(expectVal)));
+									mas.setValue(expectVal);
+								}
+								
 							} else {
 								cb.add(createMockStatement(jmi, "null"));
 								
@@ -124,11 +131,6 @@ public class ReturnBranch {
 					}
 					
 					methodInsideArgs.put(argName, mas);
-				}
-				
-				if (st instanceof JCIf) {
-					JCIf jif = (JCIf) (st);
-					
 				}
 				
 				if (st instanceof JCReturn) {
@@ -183,39 +185,75 @@ public class ReturnBranch {
 		}
 	}
 	
-	public CodeBlock analyseIf(JCIf jif) {
-		if (jif.cond instanceof JCParens) {
-			
-			JCParens jp = (JCParens) jif.cond;
-			
-			if (jp.expr instanceof JCBinary) {
-				
-				JCBinary jb = (JCBinary) jp.expr;
-				
-				// i == 1
-				if (jb.lhs instanceof JCIdent && jb.rhs instanceof JCLiteral) {
-					JCIdent lhs = (JCIdent) jb.lhs;
-					JCLiteral rhs = (JCLiteral) jb.rhs;
-					ClassTypeMatcher ctm = ClassTypeMatcher.get(rhs.typetag.toString());
-					if (ctm.equals(ClassTypeMatcher.OBJECT)) {
-						throw new RuntimeException("analyseIf fail/1");
+	private void analyseIf() {
+		
+		Set<FindVar> methodInsideFvs = new HashSet<FindVar>();
+		for (StatementTree st : statementTrees) {
+
+			if (st instanceof JCVariableDecl) {
+				JCVariableDecl jv = (JCVariableDecl) st;
+				String argName = jv.name.toString();
+				if (jv.init instanceof JCMethodInvocation) {
+					JCMethodInvocation jmi = (JCMethodInvocation) jv.init;
+					if (jmi.meth instanceof JCFieldAccess) {
+						methodInsideFvs.add(new FindVar(argName, METHOD_INSIDE_ARG));
 					}
+				}
+			}
+			
+			if (st instanceof JCIf) {
+				JCIf jif = (JCIf) st;
+
+				if (jif.cond instanceof JCParens) {
 					
-					FindVar findVar = findVar(lhs.getName().toString());
-					if (findVar.getType().equals(METHOD_INPUT_ARG)) {
-						methodInputArgs.get(findVar.getName()).setValue(rhs.value);
-					}
-					if (findVar.getType().equals(METHOD_INSIDE_ARG)) {
+					JCParens jp = (JCParens) jif.cond;
+					
+					if (jp.expr instanceof JCBinary) {
 						
+						JCBinary jb = (JCBinary) jp.expr;
+						
+						// i == 1
+						if (jb.lhs instanceof JCIdent && jb.rhs instanceof JCLiteral) {
+							JCIdent lhs = (JCIdent) jb.lhs;
+							JCLiteral rhs = (JCLiteral) jb.rhs;
+							ClassTypeMatcher ctm = ClassTypeMatcher.get(rhs.value.getClass());
+							if (ctm.equals(ClassTypeMatcher.OBJECT)) {
+								throw new RuntimeException("analyseIf fail/1");
+							}
+							
+							FindVar findVar = findVar(lhs.getName().toString());
+							if (methodInsideFvs.contains(new FindVar(lhs.getName().toString(), METHOD_INSIDE_ARG))) {
+								preVars.put(new FindVar(lhs.getName().toString(), METHOD_INSIDE_ARG), rhs.value);
+							} else if (findVar != null && findVar.getType().equals(METHOD_INPUT_ARG)) {
+								methodInputArgs.get(findVar.getName()).setValue(rhs.value);
+							} else if (findVar != null && findVar.getType().equals(CLASS_FIELD_ARG)) {
+								preVars.put(new FindVar(lhs.getName().toString(), CLASS_FIELD_ARG), rhs.value);
+							}
+						}
 					}
-//					CodeBlock cb = CodeBlock.builder()
-//							.addStatement("", Mockito.class, mockVariableName, mockMethod, expectVal)
-//							.build();
 				}
 			}
 		}
 		
-		return null;
+		while (filterIfStatement()) {
+			
+		}
+	}
+	
+	private boolean filterIfStatement() {
+		boolean isHaveIf = false;
+		List<StatementTree> newSts = new ArrayList<StatementTree>();
+		for (StatementTree st : statementTrees) {
+			if (st instanceof JCIf) {
+				JCIf jif = (JCIf) st;
+				JCBlock jb = (JCBlock) jif.thenpart;
+				newSts.addAll(jb.stats);
+			} else {
+				newSts.add(st);
+			}
+		}
+		statementTrees = newSts;
+		return isHaveIf;
 	}
 	
 	private CodeBlock createMockStatement(JCMethodInvocation jmi, Object expectVal) {
@@ -280,6 +318,19 @@ public class ReturnBranch {
 		return cb;
 	}
 	
+	private void initMethodInputArg() {
+
+		// Mock input arguments
+		for (GCMethodInputArgStore mias : methodAnalysis.getInputArgs().values()) {
+			ClassTypeMatcher ctm = ClassTypeMatcher.get(mias.getArgCla());
+			if (ctm != null) {
+				methodInputArgs.put(mias.getArgName(), new GCMethodArgStore(mias.getArgName(), mias.getArgCla(), ctm.getCommonValue()));
+			} else {
+				methodInputArgs.put(mias.getArgName(), new GCMethodArgStore(mias.getArgName(), mias.getArgCla(), null));
+			}
+		}
+	}
+	
 	private FindVar findVar(String name) {
 		
 		if (methodInsideArgs.containsKey(name)) {
@@ -319,6 +370,16 @@ public class ReturnBranch {
 		private Object val;
 		private Integer type;
 
+		public FindVar() {
+			super();
+		}
+		
+		public FindVar(String name, Integer type) {
+			super();
+			this.name = name;
+			this.type = type;
+		}
+
 		public String getName() {
 			return name;
 		}
@@ -349,6 +410,19 @@ public class ReturnBranch {
 
 		public void setType(Integer type) {
 			this.type = type;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj == null) return false;
+			if (!(obj instanceof FindVar)) return false;
+			FindVar fv = (FindVar) obj;
+			return this.name.equals(fv.getName()) && this.type.equals(fv.getType());
+		}
+
+		@Override
+		public int hashCode() {
+			return name.hashCode();
 		}
 		
 	}
