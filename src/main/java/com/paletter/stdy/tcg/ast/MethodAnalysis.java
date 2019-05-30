@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.mockito.MockitoAnnotations;
 
 import com.paletter.stdy.tcg.ast.store.GCMethodInputArgStore;
+import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.sun.source.tree.MethodTree;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
@@ -72,15 +73,26 @@ public class MethodAnalysis {
 	public List<MethodSpec> generateCode() {
 		
 		List<MethodSpec> methods = new ArrayList<MethodSpec>();
-		
-		MethodSpec.Builder mb = 
-				MethodSpec.methodBuilder("test" + CommonUtils.toUpperCaseFirstChar(methodTree.getName().toString()))
-				.addModifiers(Modifier.PUBLIC)
-				.addAnnotation(Test.class);
-		
-		mb.addStatement("$T.initMocks(this)", MockitoAnnotations.class);
-		
-		methods.add(mb.build());
+
+		int caseIndex = 0;
+		for (ReturnBranch rb : rbs) {
+			
+			CodeBlock rbCode = rb.generateCode();
+			if (rbCode == null && caseIndex > 0) continue;
+			
+			MethodSpec.Builder mb = 
+					MethodSpec.methodBuilder("test" + CommonUtils.toUpperCaseFirstChar(methodTree.getName().toString()) + "Case" + caseIndex)
+					.addModifiers(Modifier.PUBLIC)
+					.addAnnotation(Test.class);
+			
+			mb.addStatement("$T.initMocks(this)", MockitoAnnotations.class);
+			
+			if (rbCode != null) mb.addCode(rbCode);
+			
+			methods.add(mb.build());
+			
+			caseIndex ++;
+		}
 		
 		return methods;
 	}

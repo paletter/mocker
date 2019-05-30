@@ -92,7 +92,7 @@ public class AppMocker {
 		return fileList;
 	}
 	
-	private static void doMock(String fileBasicUrl, String filePath) throws Exception {
+	public static void doMock(String fileBasicUrl, String filePath) throws Exception {
 		
 		String classPath = filePath.replaceAll("/", ".");
 		classPath = classPath.replaceAll("\\\\", ".");
