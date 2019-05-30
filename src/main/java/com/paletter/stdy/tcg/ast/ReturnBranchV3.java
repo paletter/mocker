@@ -14,35 +14,22 @@ import com.paletter.stdy.tcg.ast.store.GCMethodArgStore;
 import com.paletter.stdy.tcg.ast.store.GCMethodInputArgStore;
 import com.squareup.javapoet.CodeBlock;
 import com.sun.source.tree.StatementTree;
-import com.sun.tools.javac.tree.JCTree.JCBinary;
 import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
-import com.sun.tools.javac.tree.JCTree.JCIf;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
-import com.sun.tools.javac.tree.JCTree.JCParens;
 import com.sun.tools.javac.tree.JCTree.JCReturn;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
-public class ReturnBranch {
-	
-	public static final Integer METHOD_INPUT_ARG = 1;
-	public static final Integer METHOD_INSIDE_ARG = 2;
-	public static final Integer CLASS_FIELD_ARG = 3;
+public class ReturnBranchV3 {
 	
 	private MethodAnalysis methodAnalysis;
 	private List<StatementTree> statementTrees = new ArrayList<StatementTree>();
 	private Map<String, GCMethodArgStore> methodInputArgs = new HashMap<String, GCMethodArgStore>();
 	private Map<String, GCMethodArgStore> methodInsideArgs = new HashMap<String, GCMethodArgStore>();
 	
-	public ReturnBranch(MethodAnalysis methodAnalysis, ReturnBranch rb) {
-		this(methodAnalysis);
-		
-		this.statementTrees.addAll(rb.getStatementTrees());
-	}
-	
-	public ReturnBranch(MethodAnalysis methodAnalysis) {
+	public ReturnBranchV3(MethodAnalysis methodAnalysis) {
 		this.methodAnalysis = methodAnalysis;
 		
 		// Mock input arguments
@@ -126,11 +113,6 @@ public class ReturnBranch {
 					methodInsideArgs.put(argName, mas);
 				}
 				
-				if (st instanceof JCIf) {
-					JCIf jif = (JCIf) (st);
-					
-				}
-				
 				if (st instanceof JCReturn) {
 					
 					isReturn = true;
@@ -167,12 +149,8 @@ public class ReturnBranch {
 						// Assert return
 						cb.add(createAssertReturnStatement(jl.getValue(), methodInputArgs.values()));
 					}
-					
-					break;
 				}
 			}
-			
-			if (!returnType.equals(void.class) && !isReturn) return null;
 			
 			if (!isReturn) cb.add(createNotReturnStatement(methodInputArgs.values()));
 			
@@ -181,41 +159,6 @@ public class ReturnBranch {
 		} catch (Throwable e) {
 			return null;
 		}
-	}
-	
-	public CodeBlock analyseIf(JCIf jif) {
-		if (jif.cond instanceof JCParens) {
-			
-			JCParens jp = (JCParens) jif.cond;
-			
-			if (jp.expr instanceof JCBinary) {
-				
-				JCBinary jb = (JCBinary) jp.expr;
-				
-				// i == 1
-				if (jb.lhs instanceof JCIdent && jb.rhs instanceof JCLiteral) {
-					JCIdent lhs = (JCIdent) jb.lhs;
-					JCLiteral rhs = (JCLiteral) jb.rhs;
-					ClassTypeMatcher ctm = ClassTypeMatcher.get(rhs.typetag.toString());
-					if (ctm.equals(ClassTypeMatcher.OBJECT)) {
-						throw new RuntimeException("analyseIf fail/1");
-					}
-					
-					FindVar findVar = findVar(lhs.getName().toString());
-					if (findVar.getType().equals(METHOD_INPUT_ARG)) {
-						methodInputArgs.get(findVar.getName()).setValue(rhs.value);
-					}
-					if (findVar.getType().equals(METHOD_INSIDE_ARG)) {
-						
-					}
-//					CodeBlock cb = CodeBlock.builder()
-//							.addStatement("", Mockito.class, mockVariableName, mockMethod, expectVal)
-//							.build();
-				}
-			}
-		}
-		
-		return null;
 	}
 	
 	private CodeBlock createMockStatement(JCMethodInvocation jmi, Object expectVal) {
@@ -287,7 +230,6 @@ public class ReturnBranch {
 			FindVar rlt = new FindVar();
 			rlt.setName(mas.getArgName());
 			rlt.setVal(mas.getValue());
-			rlt.setType(METHOD_INSIDE_ARG);
 			return rlt;
 		}
 		
@@ -296,7 +238,6 @@ public class ReturnBranch {
 			FindVar rlt = new FindVar();
 			rlt.setCla(mas.getArgClass());
 			rlt.setVal(mas.getValue());
-			rlt.setType(METHOD_INPUT_ARG);
 			return rlt;
 		}
 		
@@ -305,7 +246,6 @@ public class ReturnBranch {
 			FindVar rlt = new FindVar();
 			rlt.setCla(classFs.getField().getType());
 			rlt.setVal(classFs.getVal());
-			rlt.setType(CLASS_FIELD_ARG);
 			return rlt;
 		}
 		
@@ -317,7 +257,6 @@ public class ReturnBranch {
 		private String name;
 		private Class<?> cla;
 		private Object val;
-		private Integer type;
 
 		public String getName() {
 			return name;
@@ -342,14 +281,6 @@ public class ReturnBranch {
 		public void setCla(Class<?> cla) {
 			this.cla = cla;
 		}
-
-		public Integer getType() {
-			return type;
-		}
-
-		public void setType(Integer type) {
-			this.type = type;
-		}
 		
 	}
 	
@@ -371,7 +302,7 @@ public class ReturnBranch {
 			sb.append("$T.assertEquals($L.$L(");
 			for (GCMethodArgStore mas : mockInputArgs) {
 				ClassTypeMatcher ctm = ClassTypeMatcher.get(mas.getArgClass());
-				sb.append(ctm.processStatementArg(mas.getValue()));
+				sb.append(ctm.getCommonValueWithProcessStatementArg());
 				sb.append(",");
 			}
 			sb.deleteCharAt(sb.length() - 1);
@@ -437,14 +368,6 @@ public class ReturnBranch {
 			this.mockVal = mockVal;
 		}
 		
-	}
-
-	public MethodAnalysis getMethodAnalysis() {
-		return methodAnalysis;
-	}
-
-	public List<StatementTree> getStatementTrees() {
-		return statementTrees;
 	}
 
 	@Override

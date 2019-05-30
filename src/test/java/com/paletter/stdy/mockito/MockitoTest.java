@@ -20,7 +20,7 @@ public class MockitoTest {
 //		ParentMocker m = new ParentMocker();
 //		System.out.println(m.test());
 		
-		ParentMocker2 m = Mockito.mock(ParentMocker2.class);
-		System.out.println(m.goMock());
+//		ParentMocker2 m = Mockito.mock(ParentMocker2.class);
+//		System.out.println(m.goMock());
 	}
 }

@@ -15,6 +15,8 @@ import com.paletter.stdy.tcg.ast.store.GCMethodInputArgStore;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.StatementTree;
+import com.sun.tools.javac.tree.JCTree.JCIf;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class MethodAnalysis {
@@ -70,6 +72,27 @@ public class MethodAnalysis {
 		return inputArgs;
 	}
 
+	public void addStatement(StatementTree ss) {
+		if (rbs == null || rbs.isEmpty()) rbs.add(new ReturnBranch(this));
+		
+		List<ReturnBranch> newRbs = new ArrayList<ReturnBranch>();
+		for (ReturnBranch rb : rbs) {
+
+			if (ss instanceof JCIf) {
+				
+				ReturnBranch newRb = new ReturnBranch(this, rb);
+				newRb.addStatement(ss);
+				newRbs.add(newRb);
+				
+			} else {
+			
+				rb.addStatement(ss);
+			}
+		}
+		
+		rbs.addAll(newRbs);
+	}
+	
 	public List<MethodSpec> generateCode() {
 		
 		List<MethodSpec> methods = new ArrayList<MethodSpec>();

@@ -5,7 +5,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileChannel.MapMode;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,7 +12,6 @@ import java.util.Map;
 import com.paletter.stdy.tcg.ast.ClassAnalysis;
 import com.paletter.stdy.tcg.ast.ConditionStore;
 import com.paletter.stdy.tcg.ast.MethodAnalysis;
-import com.paletter.stdy.tcg.ast.ReturnBranch;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ImportTree;
@@ -32,7 +30,7 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Name;
 
-public class AppTest3 {
+public class AppTest4 {
 
 
 	public static void main(String[] args) throws Throwable {
@@ -44,7 +42,7 @@ public class AppTest3 {
 		
 //		String filePath = "src/test/java/com/paletter/stdy/mockito/ParentMocker.java";
 		String fileBasicUrl = "src/test/java/";
-		String filePath = "com/paletter/stdy/mockito/ParentMocker.java";
+		String filePath = "com/paletter/stdy/mockito/ParentMocker2.java";
 
 		String classPath = filePath.replaceAll("/", ".");
 		classPath = classPath.replaceAll(".java", "");
@@ -91,8 +89,7 @@ public class AppTest3 {
 					MethodAnalysis ma = new MethodAnalysis(ca, methodTree);
 					
 //					if (methodTree.getName().toString().equals("getMockVal8")) {
-						ReturnBranch rb = analyseMethod(ma);
-						ma.addReturnBranch(rb);
+						analyseMethod(ma);
 //					}
 					
 					ca.addMethod(ma);
@@ -108,7 +105,7 @@ public class AppTest3 {
 			return super.visitClass(node, arg1);
 		}
 
-		private ReturnBranch analyseMethod(MethodAnalysis ma) {
+		private void analyseMethod(MethodAnalysis ma) {
 
 			MethodTree methodTree = ma.getMethodTree();
 			
@@ -120,28 +117,11 @@ public class AppTest3 {
 				args.put(argVd.name, argVd);
 			}
 
-			List<ReturnBranch> rbs = new ArrayList<ReturnBranch>();
-			ReturnBranch rb = new ReturnBranch(ma);
-			rbs.add(rb);
-			
 			BlockTree body = methodTree.getBody();
 			List<? extends StatementTree> sl = body.getStatements();
 			for (StatementTree ss : sl) {
-
-				if (ss instanceof JCIf) {
-					
-					ReturnBranch newRb = new ReturnBranch(ma, rb);
-					newRb.addStatement(ss);
-					
-				} else {
-				
-					rb.addStatement(ss);
-					
-					System.out.println(ss);
-				}
+				ma.addStatement(ss);
 			}
-			
-			return rb;
 		}
 		
 		private void analyseIf(JCIf ji, ConditionStore beforeCs) {

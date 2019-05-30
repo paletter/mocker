@@ -82,77 +82,77 @@ public class AppTest {
 
 		private void analyseMethod(MethodTree methodTree) {
 
-			System.out.println("2: " + methodTree.getName());
-			ReturnBranch rb = new ReturnBranch(null);
-			
-			// Method Parameter
-			Map<Name, Object> args = new HashMap<Name, Object>();
-			
-			for (VariableTree arg : methodTree.getParameters()) {
-				JCVariableDecl argVd = (JCVariableDecl) arg;
-				args.put(argVd.name, argVd);
-			}
-			
-			BlockTree body = methodTree.getBody();
-			List<? extends StatementTree> sl = body.getStatements();
-			for (StatementTree ss : sl) {
-				
-				System.out.println(ss);
-				
-				// IF
-				if (ss instanceof JCIf) {
-					
-					// if (null == value)								
-					JCIf ji = (JCIf) ss;
-					
-					// 1 If Condition
-					if (ji.cond instanceof JCParens) {
-						JCParens cond = (JCParens) ji.cond;
-						
-						if (cond.expr instanceof JCMethodInvocation) {
-							
-							JCMethodInvocation condExpr = (JCMethodInvocation) cond.expr;
-							
-							for (JCExpression arg : condExpr.args) {
-								// commonReq.getAccessKeyOriginal()
-								if (arg instanceof JCMethodInvocation) {
-									JCMethodInvocation argJmi = (JCMethodInvocation) arg;
-									JCFieldAccess meth = (JCFieldAccess) argJmi.meth;
-									Name methName = meth.name;
-									JCIdent methIdent = (JCIdent) meth.selected;
-								}
-							}
-							
-						} else if (cond.expr instanceof JCBinary) {
-							
-							JCBinary condExpr = (JCBinary) cond.expr;
-							
-							JCLiteral ident = (JCLiteral) condExpr.lhs;
-							JCIdent rhs = (JCIdent) condExpr.rhs;
-							Name rhsName = rhs.getName();
-							Tag opcode = condExpr.getTag();
-							
-							Object arg = args.get(rhsName);
-							if (arg instanceof JCVariableDecl) {
-							}
-						}
-					}
-					
-					// Part Code
-					JCBlock thenpart = (JCBlock) ji.thenpart;
-					for (StatementTree st : thenpart.stats) {
-						if (st instanceof JCReturn) {
-//							rb.over((JCReturn) st);
-						}
-					}
-					
-				}
-				
-				if (ss instanceof JCVariableDecl) {
-					JCVariableDecl vd = (JCVariableDecl) ss;
-					args.put(vd.getName(), vd);
-				}
-			}
+//			System.out.println("2: " + methodTree.getName());
+//			ReturnBranch rb = new ReturnBranch(null);
+//			
+//			// Method Parameter
+//			Map<Name, Object> args = new HashMap<Name, Object>();
+//			
+//			for (VariableTree arg : methodTree.getParameters()) {
+//				JCVariableDecl argVd = (JCVariableDecl) arg;
+//				args.put(argVd.name, argVd);
+//			}
+//			
+//			BlockTree body = methodTree.getBody();
+//			List<? extends StatementTree> sl = body.getStatements();
+//			for (StatementTree ss : sl) {
+//				
+//				System.out.println(ss);
+//				
+//				// IF
+//				if (ss instanceof JCIf) {
+//					
+//					// if (null == value)								
+//					JCIf ji = (JCIf) ss;
+//					
+//					// 1 If Condition
+//					if (ji.cond instanceof JCParens) {
+//						JCParens cond = (JCParens) ji.cond;
+//						
+//						if (cond.expr instanceof JCMethodInvocation) {
+//							
+//							JCMethodInvocation condExpr = (JCMethodInvocation) cond.expr;
+//							
+//							for (JCExpression arg : condExpr.args) {
+//								// commonReq.getAccessKeyOriginal()
+//								if (arg instanceof JCMethodInvocation) {
+//									JCMethodInvocation argJmi = (JCMethodInvocation) arg;
+//									JCFieldAccess meth = (JCFieldAccess) argJmi.meth;
+//									Name methName = meth.name;
+//									JCIdent methIdent = (JCIdent) meth.selected;
+//								}
+//							}
+//							
+//						} else if (cond.expr instanceof JCBinary) {
+//							
+//							JCBinary condExpr = (JCBinary) cond.expr;
+//							
+//							JCLiteral ident = (JCLiteral) condExpr.lhs;
+//							JCIdent rhs = (JCIdent) condExpr.rhs;
+//							Name rhsName = rhs.getName();
+//							Tag opcode = condExpr.getTag();
+//							
+//							Object arg = args.get(rhsName);
+//							if (arg instanceof JCVariableDecl) {
+//							}
+//						}
+//					}
+//					
+//					// Part Code
+//					JCBlock thenpart = (JCBlock) ji.thenpart;
+//					for (StatementTree st : thenpart.stats) {
+//						if (st instanceof JCReturn) {
+////							rb.over((JCReturn) st);
+//						}
+//					}
+//					
+//				}
+//				
+//				if (ss instanceof JCVariableDecl) {
+//					JCVariableDecl vd = (JCVariableDecl) ss;
+//					args.put(vd.getName(), vd);
+//				}
+//			}
 		}
 	}
 		
