@@ -16,7 +16,7 @@ import com.squareup.javapoet.MethodSpec;
 import com.sun.source.tree.MethodTree;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
-public class MethodAnalysis {
+public class MethodAnalysisV2 {
 
 	private ClassAnalysis classAnalysis;
 	private MethodTree methodTree;
@@ -25,7 +25,7 @@ public class MethodAnalysis {
 	
 	private List<ReturnBranch> rbs = new ArrayList<ReturnBranch>();
 
-	public MethodAnalysis(ClassAnalysis classAnalysis, MethodTree methodTree) {
+	public MethodAnalysisV2(ClassAnalysis classAnalysis, MethodTree methodTree) {
 		this.classAnalysis = classAnalysis;
 		this.methodTree = methodTree;
 
@@ -73,14 +73,18 @@ public class MethodAnalysis {
 		
 		List<MethodSpec> methods = new ArrayList<MethodSpec>();
 		
-		MethodSpec.Builder mb = 
-				MethodSpec.methodBuilder("test" + CommonUtils.toUpperCaseFirstChar(methodTree.getName().toString()))
-				.addModifiers(Modifier.PUBLIC)
-				.addAnnotation(Test.class);
-		
-		mb.addStatement("$T.initMocks(this)", MockitoAnnotations.class);
-		
-		methods.add(mb.build());
+		for (ReturnBranch rb : rbs) {
+			
+			MethodSpec.Builder mb = 
+					MethodSpec.methodBuilder("test" + CommonUtils.toUpperCaseFirstChar(methodTree.getName().toString()))
+					.addModifiers(Modifier.PUBLIC)
+					.addAnnotation(Test.class);
+			
+			mb.addStatement("$T.initMocks(this)", MockitoAnnotations.class);
+			mb.addCode(rb.generateCode());
+			
+			methods.add(mb.build());
+		}
 		
 		return methods;
 	}

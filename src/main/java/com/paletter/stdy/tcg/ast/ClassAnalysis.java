@@ -30,9 +30,11 @@ public class ClassAnalysis {
 	private List<GCFieldStore> gcFieldStores = new ArrayList<GCFieldStore>();
 	
 	private String gcImFieldName;
+	private String gcClassPath;
 	
-	public ClassAnalysis(Class<?> clazz) {
+	public ClassAnalysis(Class<?> clazz, String gcClassPath) {
 		this.clazz = clazz;
+		this.gcClassPath = gcClassPath;
 	}
 
 	public void addVariable(JCVariableDecl jv) {
@@ -107,7 +109,7 @@ public class ClassAnalysis {
 				.addMethods(methodSpecs)
 				.build();
 		
-		JavaFile javeFile = JavaFile.builder("com.paletter.stdy.javapoet", type).build();
+		JavaFile javeFile = JavaFile.builder(gcClassPath.substring(0, gcClassPath.lastIndexOf(".")), type).build();
 		File file = new File("src/test/java");
 		javeFile.writeTo(file);
 	}
