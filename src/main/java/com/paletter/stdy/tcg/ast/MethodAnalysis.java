@@ -45,11 +45,13 @@ public class MethodAnalysis {
 		
 		// Input arguments
 		inputArgs = new HashMap<String, GCMethodInputArgStore>();
-		for (int i = 0; i < method.getParameterTypes().length; i ++) {
-			Class<?> argClass = method.getParameterTypes()[i];
-			JCVariableDecl jvd = (JCVariableDecl) this.methodTree.getParameters().get(i);
-			String argName = jvd.name.toString();
-			inputArgs.put(argName, new GCMethodInputArgStore(argClass, argName));
+		if (method.getParameterTypes() != null) {
+			for (int i = 0; i < method.getParameterTypes().length; i ++) {
+				Class<?> argClass = method.getParameterTypes()[i];
+				JCVariableDecl jvd = (JCVariableDecl) this.methodTree.getParameters().get(i);
+				String argName = jvd.name.toString();
+				inputArgs.put(argName, new GCMethodInputArgStore(argClass, argName));
+			}
 		}
 	}
 

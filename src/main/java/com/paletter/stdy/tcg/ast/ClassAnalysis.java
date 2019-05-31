@@ -23,6 +23,7 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class ClassAnalysis {
 
+	private String targetMockFilePath = null;
 	private Class<?> clazz;
 	private Map<String, Object> variables = new HashMap<String, Object>();
 	private List<MethodAnalysis> methods = new ArrayList<MethodAnalysis>();
@@ -32,9 +33,10 @@ public class ClassAnalysis {
 	private String gcImFieldName;
 	private String gcClassPath;
 	
-	public ClassAnalysis(Class<?> clazz, String gcClassPath) {
+	public ClassAnalysis(Class<?> clazz, String gcClassPath, String targetMockFilePath) {
 		this.clazz = clazz;
 		this.gcClassPath = gcClassPath;
+		this.targetMockFilePath = targetMockFilePath;
 	}
 
 	public void addVariable(JCVariableDecl jv) {
@@ -66,6 +68,10 @@ public class ClassAnalysis {
 			if (fs.getField().getName().equals(name)) return fs;
 		}
 		return null;
+	}
+	
+	public void setTargetMockFilePath(String targetMockFilePath) {
+		this.targetMockFilePath = targetMockFilePath;
 	}
 
 	public void generateCode() throws IOException {
@@ -110,7 +116,9 @@ public class ClassAnalysis {
 				.build();
 		
 		JavaFile javeFile = JavaFile.builder(gcClassPath.substring(0, gcClassPath.lastIndexOf(".")), type).build();
-		File file = new File("src/test/java");
+		File file = null;
+		if (targetMockFilePath == null) file = new File("src/test/java");
+		else file = new File(targetMockFilePath);
 		javeFile.writeTo(file);
 	}
 }

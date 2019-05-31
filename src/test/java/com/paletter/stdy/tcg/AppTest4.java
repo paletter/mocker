@@ -59,7 +59,7 @@ public class AppTest4 {
 		Parser parser = factory.newParser(Charset.defaultCharset().decode(buffer), true, false, true);
 		JCCompilationUnit unit = parser.parseCompilationUnit();
 		
-		ClassAnalysis ca = new ClassAnalysis(c2, "com.paletter.stdy.javapoet");
+		ClassAnalysis ca = new ClassAnalysis(c2, "com.paletter.stdy.javapoet", null);
 		unit.accept(new MethodScanner(ca), null);
 		
 		ca.generateCode();

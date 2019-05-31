@@ -26,6 +26,7 @@ import com.sun.tools.javac.parser.Parser;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.tree.JCTree.JCIf;
+import com.sun.tools.javac.tree.JCTree.JCModifiers;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Name;
@@ -113,7 +114,7 @@ public class AppMocker {
 			Parser parser = factory.newParser(Charset.defaultCharset().decode(buffer), true, false, true);
 			JCCompilationUnit unit = parser.parseCompilationUnit();
 			
-			ClassAnalysis ca = new ClassAnalysis(c2, classPath);
+			ClassAnalysis ca = new ClassAnalysis(c2, classPath, null);
 			unit.accept(new MethodScanner(ca), null);
 			
 			ca.generateCode();
@@ -147,6 +148,8 @@ public class AppMocker {
 				if (tree instanceof MethodTree) {
 
 					MethodTree methodTree = (MethodTree) tree;
+					JCModifiers mods = (JCModifiers) methodTree.getModifiers();
+					if (!mods.toString().contains("public")) continue;
 					
 					MethodAnalysis ma = new MethodAnalysis(ca, methodTree);
 					
