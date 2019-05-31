@@ -1,9 +1,11 @@
 package com.paletter.stdy;
 
+import java.math.BigDecimal;
+
 public class Tmp {
 
 	public static void main(String[] args) throws ClassNotFoundException {
-		System.out.println(Class.forName("com.paletter.stdy.tcg.ast.MethodAnalysis"));
 		
+		BigDecimal b = new BigDecimal(1);
 	}
 }

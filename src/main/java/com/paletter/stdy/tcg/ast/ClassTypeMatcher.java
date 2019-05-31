@@ -3,6 +3,7 @@ package com.paletter.stdy.tcg.ast;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 public enum ClassTypeMatcher {
 
@@ -31,15 +32,19 @@ public enum ClassTypeMatcher {
 	private String processAssertSuffix = "";
 	private String processAssertPrefix = "";
 	private Object commonValue = null;
+	private Object randomValue = null;
 
 	private ClassTypeMatcher(boolean isPrimitive, String name, Class<?> cla) {
 		this.isPrimitive = isPrimitive;
 		this.name = name;
 		this.cla = cla;
 		
+		Integer randomInt = 10000 + new Random().nextInt(99999);
+		
 		if (cla.equals(Integer.class)) {
 			
 			commonValue = 1;
+			randomValue = randomInt;
 			
 			if (!isPrimitive) {
 				processAssertPrefix = "Integer.valueOf(";
@@ -49,6 +54,7 @@ public enum ClassTypeMatcher {
 		} else if (cla.equals(Long.class)) {
 			
 			commonValue = 1L;
+			randomValue = Long.valueOf(randomInt);
 			
 			if (!isPrimitive) {
 				processAssertPrefix = "Long.valueOf(";
@@ -62,7 +68,8 @@ public enum ClassTypeMatcher {
 		} else if (cla.equals(Float.class)) {
 			
 			commonValue = 1F;
-
+			randomValue = Float.valueOf(randomInt);
+			
 			if (!isPrimitive) {
 				processAssertPrefix = "Float.valueOf(";
 				processAssertSuffix = "f)";
@@ -75,6 +82,7 @@ public enum ClassTypeMatcher {
 		} else if (cla.equals(Double.class)) {
 			
 			commonValue = 1D;
+			randomValue = Double.valueOf(randomInt);
 			
 			if (!isPrimitive) {
 				processAssertPrefix = "Double.valueOf(";
@@ -88,6 +96,7 @@ public enum ClassTypeMatcher {
 		} else if (cla.equals(String.class)) {
 			
 			commonValue = "testString";
+			randomValue = String.valueOf(randomInt);
 			
 			processAssertPrefix = "\"";
 			processAssertSuffix = "\"";
@@ -98,6 +107,7 @@ public enum ClassTypeMatcher {
 		} else if (cla.equals(BigDecimal.class)) {
 			
 			commonValue = new BigDecimal(1);
+			randomValue = BigDecimal.valueOf(randomInt);
 
 			processAssertPrefix = "BigDecimal.valueOf(";
 			processAssertSuffix = ")";
@@ -117,6 +127,10 @@ public enum ClassTypeMatcher {
 		return processAssertPrefix + arg + processAssertSuffix;
 	}
 	
+	public Object getRandomValue() {
+		return randomValue;
+	}
+
 	@SuppressWarnings("unchecked")
 	public <T> T getCommonValue() {
 		return (T) commonValue;

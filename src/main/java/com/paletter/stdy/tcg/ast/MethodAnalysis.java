@@ -16,7 +16,9 @@ import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.StatementTree;
+import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCIf;
+import com.sun.tools.javac.tree.JCTree.JCParens;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class MethodAnalysis {
@@ -27,7 +29,7 @@ public class MethodAnalysis {
 	private Map<String, GCMethodInputArgStore> inputArgs;
 	
 	private List<ReturnBranch> rbs = new ArrayList<ReturnBranch>();
-
+	
 	public MethodAnalysis(ClassAnalysis classAnalysis, MethodTree methodTree) {
 		this.classAnalysis = classAnalysis;
 		this.methodTree = methodTree;
@@ -71,26 +73,62 @@ public class MethodAnalysis {
 	public Map<String, GCMethodInputArgStore> getInputArgs() {
 		return inputArgs;
 	}
-
+	
+	private List<ReturnBranch> newRbs = new ArrayList<ReturnBranch>();
 	public void addStatement(StatementTree ss) {
 		if (rbs == null || rbs.isEmpty()) rbs.add(new ReturnBranch(this));
 		
-		List<ReturnBranch> newRbs = new ArrayList<ReturnBranch>();
+		newRbs = new ArrayList<ReturnBranch>();
 		for (ReturnBranch rb : rbs) {
-
-			if (ss instanceof JCIf) {
-				
-				ReturnBranch newRb = new ReturnBranch(this, rb);
-				newRb.addStatement(ss);
-				newRbs.add(newRb);
-				
-			} else {
-			
-				rb.addStatement(ss);
-			}
+			addStatementToReturnBranch(ss, rb);
 		}
 		
 		rbs.addAll(newRbs);
+	}
+	
+	private void addStatementToReturnBranch(StatementTree ss, ReturnBranch rb) {
+		
+		if (ss instanceof JCIf) {
+			
+			JCIf jif = (JCIf) ss;
+			analyseIf(jif, rb);
+			
+		} else {
+		
+			rb.addStatement(ss);
+		}
+	}
+	
+	private void analyseIf(JCIf jif, ReturnBranch parentRb) {
+
+		JCParens cond = (JCParens) jif.cond;
+		JCBlock thenpart  = (JCBlock) jif.thenpart;
+		
+		// If branch
+		ReturnBranch newIfRb = parentRb.split();
+		newIfRb.addPreIfConds(cond, true);
+		for (StatementTree st : thenpart.stats) addStatementToReturnBranch(st, newIfRb);
+		newRbs.add(newIfRb);
+		
+		// Else if branch
+		if (jif.elsepart != null && jif.elsepart instanceof JCIf) {
+			JCIf elsepart = (JCIf) jif.elsepart;
+			
+			ReturnBranch newParentRb = parentRb.split();
+			newParentRb.addPreIfConds(cond, false);
+			
+			analyseIf(elsepart, newParentRb);
+		}
+		
+		// Else branch
+		if (jif.elsepart != null && jif.elsepart instanceof JCBlock) {
+			JCBlock elsepart = (JCBlock) jif.elsepart;
+			
+			ReturnBranch newElseRb = parentRb.split();
+			newElseRb.addPreIfConds(cond, false);
+			for (StatementTree st : elsepart.stats) addStatementToReturnBranch(st, newElseRb);
+			newRbs.add(newElseRb);
+		}
 	}
 	
 	public List<MethodSpec> generateCode() {
@@ -98,10 +136,12 @@ public class MethodAnalysis {
 		List<MethodSpec> methods = new ArrayList<MethodSpec>();
 
 		int caseIndex = 0;
-		for (ReturnBranch rb : rbs) {
+		for (int i = 0; i < rbs.size(); i ++) {
+			
+			ReturnBranch rb = rbs.get(i);
 			
 			CodeBlock rbCode = rb.generateCode();
-			if (rbCode == null && caseIndex > 0) continue;
+			if (rbCode == null && i < rbs.size() - 1) continue;
 			
 			MethodSpec.Builder mb = 
 					MethodSpec.methodBuilder("test" + CommonUtils.toUpperCaseFirstChar(methodTree.getName().toString()) + "Case" + caseIndex)

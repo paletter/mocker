@@ -4,7 +4,19 @@ public class ChildrenMocker {
 
 	private String name;
 
+	public boolean isTrue() {
+		return true;
+	}
+	
 	public Integer getId() {
+		return 100;
+	}
+	
+	public Integer getId2() {
+		return 100;
+	}
+	
+	public Integer getId3() {
 		return 100;
 	}
 	

@@ -26,6 +26,7 @@ import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCParens;
 import com.sun.tools.javac.tree.JCTree.JCReturn;
+import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class ReturnBranch {
@@ -41,9 +42,12 @@ public class ReturnBranch {
 	
 	private Map<FindVar, Object> preVars = new HashMap<FindVar, Object>();
 	
+	private List<IfConditionStore> preIfConds = new ArrayList<IfConditionStore>();
+	
 	public ReturnBranch(MethodAnalysis methodAnalysis, ReturnBranch rb) {
 		this(methodAnalysis);
 		
+		this.preIfConds.addAll(rb.getPreIfConds());
 		this.statementTrees.addAll(rb.getStatementTrees());
 	}
 	
@@ -52,11 +56,26 @@ public class ReturnBranch {
 		
 		initMethodInputArg();
 	}
+	
+	public ReturnBranch split() {
+		ReturnBranch splitrb = new ReturnBranch(methodAnalysis);
+		splitrb.getPreIfConds().addAll(this.getPreIfConds());
+		splitrb.getStatementTrees().addAll(this.statementTrees);
+		return splitrb;
+	}
 
 	public void addStatement(StatementTree st) {
 		statementTrees.add(st);
 	}
+	
+	public void addStatement(List<JCStatement> sts) {
+		statementTrees.addAll(sts);
+	}
 
+	public void addPreIfConds(JCParens jp, boolean positive) {
+		preIfConds.add(new IfConditionStore(jp, positive));
+	}
+	
 	public CodeBlock generateCode() {
 		
 		try {
@@ -80,7 +99,7 @@ public class ReturnBranch {
 			}
 			
 			// PreAnalyse if
-			analyseIf();
+			analysePreCond();
 			
 			CodeBlock.Builder cb = CodeBlock.builder();
 			
@@ -182,6 +201,106 @@ public class ReturnBranch {
 		
 		} catch (Throwable e) {
 			return null;
+		}
+	}
+
+	private void analysePreCond() {
+		
+		Set<FindVar> methodInsideFvs = new HashSet<FindVar>();
+		for (StatementTree st : statementTrees) {
+
+			if (st instanceof JCVariableDecl) {
+				JCVariableDecl jv = (JCVariableDecl) st;
+				String argName = jv.name.toString();
+				if (jv.init instanceof JCMethodInvocation) {
+					JCMethodInvocation jmi = (JCMethodInvocation) jv.init;
+					if (jmi.meth instanceof JCFieldAccess) {
+						methodInsideFvs.add(new FindVar(argName, METHOD_INSIDE_ARG));
+					}
+				}
+			}
+		}
+		
+		// Do negative condition first
+		for (IfConditionStore ics : preIfConds) {
+			JCParens jp = ics.getJp();
+			
+			// Negative condition
+			if (!ics.positive) {
+
+				if (jp.expr instanceof JCBinary) {
+					
+					JCBinary jb = (JCBinary) jp.expr;
+					
+					// i == 1
+					if (jb.lhs instanceof JCIdent && jb.rhs instanceof JCLiteral) {
+						JCIdent lhs = (JCIdent) jb.lhs;
+						JCLiteral rhs = (JCLiteral) jb.rhs;
+						ClassTypeMatcher rhsCtm = ClassTypeMatcher.get(rhs.value.getClass());
+						if (rhsCtm.equals(ClassTypeMatcher.OBJECT)) {
+							throw new RuntimeException("analyseIf fail/1");
+						}
+						
+						FindVar findVar = findVar(lhs.getName().toString());
+						if (methodInsideFvs.contains(new FindVar(lhs.getName().toString(), METHOD_INSIDE_ARG))) {
+							
+							// MethodInsideArg
+							preVars.put(new FindVar(lhs.getName().toString(), METHOD_INSIDE_ARG), rhsCtm.getRandomValue());
+							
+						} else if (findVar != null && findVar.getType().equals(METHOD_INPUT_ARG)) {
+							
+							// MethodInputArg
+							methodInputArgs.get(findVar.getName()).setValue(rhsCtm.getRandomValue());
+							
+						} else if (findVar != null && findVar.getType().equals(CLASS_FIELD_ARG)) {
+							
+							// ClassFieldArg
+							preVars.put(new FindVar(lhs.getName().toString(), CLASS_FIELD_ARG), rhsCtm.getRandomValue());
+						}
+					}
+				}
+			}
+		}
+		
+		// Then do positive condition
+		for (IfConditionStore ics : preIfConds) {
+			JCParens jp = ics.getJp();
+			
+			// Positive condition
+			if (ics.positive) {
+				
+				if (jp.expr instanceof JCBinary) {
+					
+					JCBinary jb = (JCBinary) jp.expr;
+					
+					// i == 1
+					if (jb.lhs instanceof JCIdent && jb.rhs instanceof JCLiteral) {
+						JCIdent lhs = (JCIdent) jb.lhs;
+						JCLiteral rhs = (JCLiteral) jb.rhs;
+						ClassTypeMatcher ctm = ClassTypeMatcher.get(rhs.value.getClass());
+						if (ctm.equals(ClassTypeMatcher.OBJECT)) {
+							throw new RuntimeException("analyseIf fail/1");
+						}
+						
+						FindVar findVar = findVar(lhs.getName().toString());
+						if (methodInsideFvs.contains(new FindVar(lhs.getName().toString(), METHOD_INSIDE_ARG))) {
+							
+							// MethodInsideArg
+							preVars.put(new FindVar(lhs.getName().toString(), METHOD_INSIDE_ARG), rhs.value);
+							
+						} else if (findVar != null && findVar.getType().equals(METHOD_INPUT_ARG)) {
+							
+							// MethodInputArg
+							methodInputArgs.get(findVar.getName()).setValue(rhs.value);
+							
+						} else if (findVar != null && findVar.getType().equals(CLASS_FIELD_ARG)) {
+							
+							// ClassFieldArg
+							preVars.put(new FindVar(lhs.getName().toString(), CLASS_FIELD_ARG), rhs.value);
+						}
+					}
+				}
+			}
 		}
 	}
 	
@@ -483,42 +602,47 @@ public class ReturnBranch {
 		return cb.build();
 	}
 	
-	class MockInputArg {
-		
-		private Class<?> argClass;
-		private String argName;
-		private Object mockVal;
-
-		public MockInputArg(Class<?> argClass, String argName, Object mockVal) {
-			this.argClass = argClass;
-			this.argName = argName;
-			this.mockVal = mockVal;
-		}
-
-		public Class<?> getArgClass() {
-			return argClass;
-		}
-
-		public void setArgClass(Class<?> argClass) {
-			this.argClass = argClass;
-		}
-
-		public Object getMockVal() {
-			return mockVal;
-		}
-
-		public void setMockVal(Object mockVal) {
-			this.mockVal = mockVal;
-		}
-		
-	}
-
 	public MethodAnalysis getMethodAnalysis() {
 		return methodAnalysis;
 	}
 
 	public List<StatementTree> getStatementTrees() {
 		return statementTrees;
+	}
+	
+	class IfConditionStore {
+		private JCParens jp;
+		private boolean positive;
+		
+		public IfConditionStore(JCParens jp, boolean positive) {
+			this.jp = jp;
+			this.positive = positive;
+		}
+
+		public JCParens getJp() {
+			return jp;
+		}
+
+		public void setJp(JCParens jp) {
+			this.jp = jp;
+		}
+
+		public boolean isPositive() {
+			return positive;
+		}
+
+		public void setPositive(boolean positive) {
+			this.positive = positive;
+		}
+
+		@Override
+		public String toString() {
+			return jp.toString() + "," + positive;
+		}
+	}
+	
+	public List<IfConditionStore> getPreIfConds() {
+		return preIfConds;
 	}
 
 	@Override
