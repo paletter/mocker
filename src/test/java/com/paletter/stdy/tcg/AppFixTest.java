@@ -11,6 +11,7 @@ import java.util.Map;
 
 import com.paletter.stdy.tcg.ast.core.ClassAnalysis;
 import com.paletter.stdy.tcg.ast.core.MethodAnalysis;
+import com.paletter.stdy.tcg.ast.core.MethodFixAnalysis;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ImportTree;
@@ -27,7 +28,7 @@ import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Name;
 
-public class AppTest4 {
+public class AppFixTest {
 
 
 	public static void main(String[] args) throws Throwable {
@@ -39,7 +40,7 @@ public class AppTest4 {
 		
 //		String filePath = "src/test/java/com/paletter/stdy/mockito/ParentMocker.java";
 		String fileBasicUrl = "src/test/java/";
-		String filePath = "com/paletter/stdy/mockito/ParentMocker2.java";
+		String filePath = "com/paletter/stdy/mockito/fix/FixMocker.java";
 
 		String classPath = filePath.replaceAll("/", ".");
 		classPath = classPath.replaceAll(".java", "");
@@ -56,7 +57,7 @@ public class AppTest4 {
 		Parser parser = factory.newParser(Charset.defaultCharset().decode(buffer), true, false, true);
 		JCCompilationUnit unit = parser.parseCompilationUnit();
 		
-		ClassAnalysis ca = new ClassAnalysis(c2, "com.paletter.stdy.javapoet", null);
+		ClassAnalysis ca = new ClassAnalysis(c2, "com.paletter.stdy", null);
 		unit.accept(new MethodScanner(ca), null);
 		
 		ca.generateCode();
@@ -83,10 +84,10 @@ public class AppTest4 {
 
 					MethodTree methodTree = (MethodTree) tree;
 					
-					MethodAnalysis ma = new MethodAnalysis(ca, methodTree);
+					MethodFixAnalysis ma = new MethodFixAnalysis(ca, methodTree);
 					
 //					if (methodTree.getName().toString().equals("getMockVal8")) {
-						analyseMethod(ma);
+//						analyseMethod(ma);
 //					}
 					
 					ca.addMethod(ma);

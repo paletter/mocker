@@ -63,7 +63,7 @@ public class ParentMocker2Test {
     MockitoAnnotations.initMocks(this);
     Mockito.when(cm.getId()).thenReturn(100);
     Mockito.when(cm.getId2()).thenReturn(1000);
-    Mockito.when(cm.getId3()).thenReturn(26979);
+    Mockito.when(cm.getId3()).thenReturn(40760);
     Assert.assertEquals(parentMocker2.if5(), "e");
   }
 
@@ -71,7 +71,7 @@ public class ParentMocker2Test {
   public void testIf5Case2() {
     MockitoAnnotations.initMocks(this);
     Mockito.when(cm.getId()).thenReturn(100);
-    Mockito.when(cm.getId2()).thenReturn(26979);
+    Mockito.when(cm.getId2()).thenReturn(40760);
     Assert.assertEquals(parentMocker2.if5(), "b");
   }
 
@@ -85,7 +85,7 @@ public class ParentMocker2Test {
   @Test
   public void testIf5Case4() {
     MockitoAnnotations.initMocks(this);
-    Mockito.when(cm.getId()).thenReturn(26979);
+    Mockito.when(cm.getId()).thenReturn(40760);
     Assert.assertEquals(parentMocker2.if5(), "d");
   }
 
@@ -106,7 +106,7 @@ public class ParentMocker2Test {
   @Test
   public void testIf4Case2() {
     MockitoAnnotations.initMocks(this);
-    Mockito.when(cm.getId()).thenReturn(26979);
+    Mockito.when(cm.getId()).thenReturn(40760);
     Assert.assertEquals(parentMocker2.if4(), "c");
   }
 
@@ -120,7 +120,7 @@ public class ParentMocker2Test {
   @Test
   public void testIf3Case1() {
     MockitoAnnotations.initMocks(this);
-    Mockito.when(cm.getId()).thenReturn(26979);
+    Mockito.when(cm.getId()).thenReturn(40760);
     Assert.assertEquals(parentMocker2.if3(), "c");
   }
 

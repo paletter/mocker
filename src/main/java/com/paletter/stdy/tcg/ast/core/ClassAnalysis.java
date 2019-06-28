@@ -1,4 +1,4 @@
-package com.paletter.stdy.tcg.ast;
+package com.paletter.stdy.tcg.ast.core;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,6 +14,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
 import com.paletter.stdy.tcg.ast.store.GCFieldStore;
+import com.paletter.stdy.tcg.ast.support.ClassTypeMatcher;
+import com.paletter.stdy.tcg.ast.support.CommonUtils;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
@@ -115,7 +117,8 @@ public class ClassAnalysis {
 				.addMethods(methodSpecs)
 				.build();
 		
-		JavaFile javeFile = JavaFile.builder(gcClassPath.substring(0, gcClassPath.lastIndexOf(".")), type).build();
+		if (gcClassPath.endsWith(".")) gcClassPath = gcClassPath.substring(0, gcClassPath.length() - 1);
+		JavaFile javeFile = JavaFile.builder(gcClassPath, type).build();
 		File file = null;
 		if (targetMockFilePath == null) file = new File("src/test/java");
 		else file = new File(targetMockFilePath);

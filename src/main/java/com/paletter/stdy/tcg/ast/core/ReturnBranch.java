@@ -1,4 +1,4 @@
-package com.paletter.stdy.tcg.ast;
+package com.paletter.stdy.tcg.ast.core;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -14,6 +14,7 @@ import org.mockito.Mockito;
 import com.paletter.stdy.tcg.ast.store.GCFieldStore;
 import com.paletter.stdy.tcg.ast.store.GCMethodArgStore;
 import com.paletter.stdy.tcg.ast.store.GCMethodInputArgStore;
+import com.paletter.stdy.tcg.ast.support.ClassTypeMatcher;
 import com.squareup.javapoet.CodeBlock;
 import com.sun.source.tree.StatementTree;
 import com.sun.tools.javac.tree.JCTree.JCBinary;

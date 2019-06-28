@@ -1,4 +1,4 @@
-package com.paletter.stdy.tcg.ast;
+package com.paletter.stdy.tcg.ast.core;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.mockito.MockitoAnnotations;
 
 import com.paletter.stdy.tcg.ast.store.GCMethodInputArgStore;
+import com.paletter.stdy.tcg.ast.support.CommonUtils;
 import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.MethodSpec;
 import com.sun.source.tree.MethodTree;

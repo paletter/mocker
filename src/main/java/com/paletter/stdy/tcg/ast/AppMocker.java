@@ -13,6 +13,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.paletter.stdy.tcg.ast.core.ClassAnalysis;
+import com.paletter.stdy.tcg.ast.core.MethodAnalysis;
+import com.paletter.stdy.tcg.ast.core.MethodFixAnalysis;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ImportTree;
@@ -25,25 +28,25 @@ import com.sun.tools.javac.file.JavacFileManager;
 import com.sun.tools.javac.parser.Parser;
 import com.sun.tools.javac.parser.ParserFactory;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
-import com.sun.tools.javac.tree.JCTree.JCIf;
-import com.sun.tools.javac.tree.JCTree.JCModifiers;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Name;
 
 public class AppMocker {
 
-	public static void main(String[] args) throws Exception {
-		
-		startMock("com.paletter.stdy.tcg.ast");
-		
-		
-//		String s = "com.paletter.stdy.tcg.ast.aa";
-//		System.out.println(s.lastIndexOf("."));
-//		System.out.println(s.substring(0, s.lastIndexOf(".")));
+	private static int MOCK_MODE = 1;
+	
+	public static void startSmartMock(String path, String gcPath) throws Exception {
+		MOCK_MODE = 1;
+		startMock(path, gcPath);
 	}
 	
-	public static void startMock(String path) throws Exception {
+	public static void startFixMock(String path, String gcPath) throws Exception {
+		MOCK_MODE = 2;
+		startMock(path, gcPath);
+	}
+	
+	public static void startMock(String path, String gcPath) throws Exception {
 		
 		ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 		String rootPath = path.replaceAll("\\.", "/");
@@ -66,7 +69,7 @@ public class AppMocker {
 						String classPath = file.getPath().substring(subIndex);
 						classPath = classPath.replace(".class", ".java");
 
-						doMock("src\\main\\java\\", classPath);
+						doMock("src\\main\\java\\", classPath, gcPath);
 					}
 				}
 			}
@@ -94,6 +97,10 @@ public class AppMocker {
 	}
 	
 	public static void doMock(String fileBasicUrl, String filePath) throws Exception {
+		doMock(fileBasicUrl, filePath, filePath);
+	}
+	
+	public static void doMock(String fileBasicUrl, String filePath, String gcPath) throws Exception {
 		
 		String classPath = filePath.replaceAll("/", ".");
 		classPath = classPath.replaceAll("\\\\", ".");
@@ -114,7 +121,7 @@ public class AppMocker {
 			Parser parser = factory.newParser(Charset.defaultCharset().decode(buffer), true, false, true);
 			JCCompilationUnit unit = parser.parseCompilationUnit();
 			
-			ClassAnalysis ca = new ClassAnalysis(c2, classPath, null);
+			ClassAnalysis ca = new ClassAnalysis(c2, gcPath, null);
 			unit.accept(new MethodScanner(ca), null);
 			
 			ca.generateCode();
@@ -148,15 +155,22 @@ public class AppMocker {
 				if (tree instanceof MethodTree) {
 
 					MethodTree methodTree = (MethodTree) tree;
-					JCModifiers mods = (JCModifiers) methodTree.getModifiers();
-					if (!mods.toString().contains("public")) continue;
 					
-					MethodAnalysis ma = new MethodAnalysis(ca, methodTree);
+					// Smart Mocker
+					if (MOCK_MODE == 1) {
+						MethodAnalysis ma = new MethodAnalysis(ca, methodTree);
+						
+						analyseMethod(ma);
+						
+						ca.addMethod(ma);
+					}
 					
-					ReturnBranch rb = analyseMethod(ma);
-					ma.addReturnBranch(rb);
-					
-					ca.addMethod(ma);
+					// Fix Mocker
+					if (MOCK_MODE == 2) {
+						MethodFixAnalysis ma = new MethodFixAnalysis(ca, methodTree);
+						
+						ca.addMethod(ma);
+					}
 				}
 				
 				if (tree instanceof JCVariableDecl) {
@@ -169,7 +183,7 @@ public class AppMocker {
 			return super.visitClass(node, arg1);
 		}
 
-		private ReturnBranch analyseMethod(MethodAnalysis ma) {
+		private void analyseMethod(MethodAnalysis ma) {
 
 			MethodTree methodTree = ma.getMethodTree();
 			
@@ -181,20 +195,11 @@ public class AppMocker {
 				args.put(argVd.name, argVd);
 			}
 
-			ReturnBranch rb = new ReturnBranch(ma);
-			
 			BlockTree body = methodTree.getBody();
 			List<? extends StatementTree> sl = body.getStatements();
 			for (StatementTree ss : sl) {
-				
-				// IF
-				if (!(ss instanceof JCIf)) {
-				
-					rb.addStatement(ss);
-				}
+				ma.addStatement(ss);
 			}
-			
-			return rb;
 		}
 	}
 }
