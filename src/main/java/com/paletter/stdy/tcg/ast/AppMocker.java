@@ -14,8 +14,10 @@ import java.util.List;
 import java.util.Map;
 
 import com.paletter.stdy.tcg.ast.core.ClassAnalysis;
+import com.paletter.stdy.tcg.ast.core.ClassFixSpringAnalysis;
 import com.paletter.stdy.tcg.ast.core.MethodAnalysis;
 import com.paletter.stdy.tcg.ast.core.MethodFixAnalysis;
+import com.paletter.stdy.tcg.ast.core.MethodFixSpringAnalysis;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ImportTree;
@@ -43,6 +45,11 @@ public class AppMocker {
 	
 	public static void startFixMock(String path, String gcPath) throws Exception {
 		MOCK_MODE = 2;
+		startMock(path, gcPath);
+	}
+	
+	public static void startFixSpringMock(String path, String gcPath) throws Exception {
+		MOCK_MODE = 3;
 		startMock(path, gcPath);
 	}
 	
@@ -121,10 +128,21 @@ public class AppMocker {
 			Parser parser = factory.newParser(Charset.defaultCharset().decode(buffer), true, false, true);
 			JCCompilationUnit unit = parser.parseCompilationUnit();
 			
-			ClassAnalysis ca = new ClassAnalysis(c2, gcPath, null);
-			unit.accept(new MethodScanner(ca), null);
+			if (MOCK_MODE == 3) {
+				
+				// Fix Spring Mock
+				ClassFixSpringAnalysis ca = new ClassFixSpringAnalysis(c2, gcPath, null);
+				unit.accept(new MethodScanner(ca), null);
+				
+				ca.generateCode();
+				
+			} else {
 			
-			ca.generateCode();
+				ClassAnalysis ca = new ClassAnalysis(c2, gcPath, null);
+				unit.accept(new MethodScanner(ca), null);
+				
+				ca.generateCode();
+			}
 		} catch (Exception e) {
 			throw e;
 		} finally {
@@ -156,7 +174,7 @@ public class AppMocker {
 
 					MethodTree methodTree = (MethodTree) tree;
 					
-					// Smart Mocker
+					// Smart Mock
 					if (MOCK_MODE == 1) {
 						MethodAnalysis ma = new MethodAnalysis(ca, methodTree);
 						
@@ -165,9 +183,16 @@ public class AppMocker {
 						ca.addMethod(ma);
 					}
 					
-					// Fix Mocker
+					// Fix Mock
 					if (MOCK_MODE == 2) {
 						MethodFixAnalysis ma = new MethodFixAnalysis(ca, methodTree);
+						
+						ca.addMethod(ma);
+					}
+					
+					// Fix Spring Mock
+					if (MOCK_MODE == 3) {
+						MethodFixSpringAnalysis ma = new MethodFixSpringAnalysis(ca, methodTree);
 						
 						ca.addMethod(ma);
 					}
